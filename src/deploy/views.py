@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import subprocess
+import http
 
 from django.http import HttpResponse, HttpResponseForbidden, Http404
 from django.conf import settings
@@ -18,8 +19,8 @@ def deploy(request):
     # Example of how to pipe stdout, stderr in case useful in future
     #raise Exception(subprocess.run("git pull open master".split(' '), timeout=15, stdout = subprocess.PIPE, stderr = subprocess.PIPE).stdout)
 
-    if subprocess.run('git pull'.split(' '), timeout=15).returncode == 0 and \
-       subprocess.run('python manage.py migrate'.split(' '), timeout=15).returncode == 0 and \
-       subprocess.run('python manage.py collectstatic --noinput'.split(' '), timeout=15).returncode == 0:
+    if subprocess.run('git pull'.split(' '), timeout=15).returncode == 0: # and \
+       #subprocess.run('python manage.py migrate'.split(' '), timeout=15).returncode == 0 and \
+       #subprocess.run('python manage.py collectstatic --noinput'.split(' '), timeout=15).returncode == 0:
         return HttpResponse('Webhook received', status=http.client.ACCEPTED)
     raise Http404("Update failed")
