@@ -12,4 +12,6 @@ urlpatterns = [
     path('game/target', views.target, name='target'),
     path('404', views.test404, name='test_404'),
     path('500', views.test500, name='test_500'),
+
+    path('cast-all', views.cast_all, name='cast-all'),
 ]

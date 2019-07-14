@@ -1,6 +1,5 @@
 {% extends "layout.html" %}
 {% block content %}
-<h1>Ongoing Game {{game.id}}</h1>
 
 {% if not game.date_started %}
   <p>
@@ -21,47 +20,132 @@
   {% if my_player.id == players.0.id  %}
   <form action="{% url 'matthews:start' %}" method="POST">
     {% csrf_token %}
-    <input type="submit" value="Start game">
+    <input type="submit" value="Start game" class="btn btn-primary">
   </form>
   {% else %}
   {{players.0.name}} is in charge of starting game
   {% endif %}
 
+{% elif mafia_win is None %}
 
-{% else %}
+  <h2>Round {{round|add:'1'}} - {{round|divisibleby:'2'|yesno:"Daytime Execution, Night Crawling"}}</h2>
 
+  {% if not my_action %}
+    <p>
+      {{round|divisibleby:'2'|yesno:"Last night,Earlier today"}}
+      {% for dead in deaths %}
+        {{dead}}
+      {% empty %}
+        no one
+      {% endfor %}
+      {{round|divisibleby:'2'|yesno:"was murdered,was executed"}}
+    </p>
+    {% if suspect %}
+    <p>
+      {{suspect}} is {% if suspect.character_id == MAFIA_ID %}bad{% else %}good{% endif %}
+    </p>
+    {% endif %}
 
-  {% if not round|divisibleby:2 %}
-  <h2>Round {{round|add:'1'}} - Nighttime Assasination</h2>
-  {% else %}
-  <h2>Round {{round|add:'1'}} - Daytime Execution</h2>
+    {% if votes and not round|divisibleby:'2' %}
+    <p>
+      {% for vote in votes %}
+      {{vote.done_by}} voted for {{vote.done_to}}<br>
+      {% endfor %}
+    </p>
+    {% endif %}
   {% endif %}
+
 
   <form action="{% url 'matthews:target' %}" method="POST">
   {% csrf_token %}
   <ul>
     {% for player in players %}
       <li>
-        <label>
+        <label class="{% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
+                      {{player.died_in_round|yesno:'mark_dead,mark_dead,'}}
+                      {% if my_action and my_action.done_to == player %}mark_voted{% endif%}
+                      ">
+          {% if not my_action %}
           <input type="radio" name="target" value="{{player.id}}">
-          {{player.name}} <i>{{player.character.name}}</i>
-          {% if my_player.id == player.id %}
-          (you)
           {% endif %}
+
+          {{player.name}}
+          {% if my_player.id == player.id %}
+            ({{my_player.character}})
+          {% endif %}
+          <i>{{player.has_acted|yesno:'has acted,'}}</i>
         </label>
+
+        {% if debug %}
+          <i class="float-right">&nbsp; {{player.character.name}}</i>
+          {% if my_player.id != player.id %}
+          <a class="float-right" href="{% url 'matthews:game' %}?play_as_id={{player.id}}">play as</a>
+          {% endif %}
+        {% endif %}
       </li>
     {% endfor %}
       <li>
-        <label>
-          <input type="radio" name="target" value="0">
+        <label class="{% if my_action and my_action.done_to is None %}mark_voted{% endif%}">
+          {% if not my_action %}
+          <input type="radio" name="target" value="0" checked>
+          {% endif %}
           No one
         </label>
       </li>
   </ul>
-  <input type="submit" value="Choose">
+  {% if not my_action %}
+    <input type="submit" value="{% spaceless %}
+    {% if my_player.died_in_round is not None %}
+      Haunt
+    {% elif round|divisibleby:2 %}
+      Vote to lynch
+    {% elif my_player.character_id == 1 %}
+      Assasinate
+    {% elif my_player.character_id == 2 %}
+      Suspect
+    {% elif my_player.character_id == 3 %}
+      Save from harm
+    {% elif my_player.character_id == 4 %}
+      Investigate
+    {% endif %}
+    {% endspaceless %}" class="btn btn-primary">
+  {% else %}
+    <a class="btn btn-primary" href="{% url 'matthews:game' %}">refresh list</a>
+  {% endif %}
   </form>
 
+
+
+  {% if debug %}
+  <p class="mt-5">
+    <a class="btn btn-danger float-right" href="{% url 'matthews:cast-all' %}">Cast all remaining votes</a>
+  </p>
+  {% endif %}
+
+{% else %}
+<div class="win_text">
+  {{mafia_win|yesno:'The Bad Guys Win, The Good Guys Win,'}}
+</div>
 {% endif %}
+
+<style>
+ul {
+list-style-type: none;
+}
+.mark_bad {
+  font-weight: bold;
+}
+.mark_dead {
+  text-decoration: line-through;
+}
+.mark_voted {
+  background-color: #fec;
+}
+.win_text{
+  font-size: 6em;
+  color: red;
+}
+</style>
 
 
 {% endblock %}

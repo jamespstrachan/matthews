@@ -11,11 +11,16 @@ class User(AbstractUser):
 class Game(models.Model):
     date_started = models.DateTimeField(null=True, blank=True)
 
+    def __str__(self):
+        return 'Game {}'.format(self.id)
+
+
 
 class Player(models.Model):
     name      = models.CharField(max_length=12, blank=False, null=False)
     game      = models.ForeignKey('Game', related_name='players', on_delete=models.CASCADE, blank=False, null=False)
     character = models.ForeignKey('Character', related_name='players', on_delete=models.PROTECT, blank=True, null=True)
+    died_in_round = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -23,6 +28,9 @@ class Player(models.Model):
 
 class Character(models.Model):
     name = models.CharField(max_length=12, blank=False, null=False)
+
+    def __str__(self):
+        return self.name
 
 
 class Action(models.Model):
@@ -32,4 +40,4 @@ class Action(models.Model):
 
     def __str__(self):
         #todo: remove this after debugging
-        return 'round {}: {} targeted {}'.format(self.round, self.done_by.name, self.done_to.name)
+        return 'round {}: {} targeted {}'.format(self.round, self.done_by, self.done_to)
