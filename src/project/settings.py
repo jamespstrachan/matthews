@@ -24,6 +24,7 @@ env.read_env(REPO_BASE_DIR + '/.env')
 DEBUG         = env.bool('DJANGO_DEBUG', False)
 ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS', default='').split(',')
 SECRET_KEY    = env('DJANGO_SECRET_KEY', default=None)
+SECRET_DEPLOY_KEY = env('DJANGO_SECRET_DEPLOY_KEY', default=None)
 
 BASE_URL = env('DJANGO_BASE_URL', default='')
 
@@ -31,6 +32,7 @@ BASE_URL = env('DJANGO_BASE_URL', default='')
 
 INSTALLED_APPS = [
     'matthews',
+    'deploy',
     'anora',
     'django_tables2',
     'django_filters',

@@ -12,7 +12,7 @@ from django_tables2 import RequestConfig
 
 from .models import Game, Player, Action
 
-@login_required
+
 def home(request):
     context = {}
     return render(request, 'matthews/home.html', context)
