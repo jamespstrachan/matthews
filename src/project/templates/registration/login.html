@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% load bootstrap4 %}
+
+{% block content %}
+<h1>Login page</h1>
+<form class="col-12 text-center" method="post" action="{% url 'login' %}">
+    {% if next %}
+        {% if user.is_authenticated %}
+        <p>Your account doesn't have access to this page. To proceed,
+        please login with an account that has access.</p>
+        {% endif %}
+    {% endif %}
+
+    {% csrf_token %}
+    {% bootstrap_form form layout='inline' size='large' %}
+    <input type="submit" class="btn btn-primary" value="login" />
+    <input type="hidden" name="next" value="{{ next }}" />
+    <!--
+    {# Assumes you setup the password_reset view in your URLconf #}
+    <p>
+        <br>
+        <a href="{% url 'password_reset' %}">Lost password?</a>
+    </p>
+    //-->
+</form>
+
+{% endblock %}

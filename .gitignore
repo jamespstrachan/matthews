@@ -1,0 +1,7 @@
+/static
+logs/*
+!README.txt
+db.sqlite3
+__pycache__
+/.env
+*.log

@@ -1,0 +1,17 @@
+# This docker-compose is intended for development as it mounts the local directory as a volume
+version: "3"
+
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "280:80"
+      - "281:81"
+
+  cache:
+    image: memcached
+    entrypoint:
+      - memcached
+      - -m 64

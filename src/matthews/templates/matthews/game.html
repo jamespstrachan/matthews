@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Ongoing Game {{game.id}}</h1>
+
+{% if not game.date_started %}
+  <p>
+    Encourage others to join: <input value="{{base_url}}{% url 'matthews:lobby' game.id %}">
+  </p>
+
+  <ul>
+    {% for player in players %}
+      <li>
+        {{player.name}}
+        {% if my_player.id == player.id %}
+        (you)
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if my_player.id == players.0.id  %}
+  <form action="{% url 'matthews:start' %}" method="POST">
+    {% csrf_token %}
+    <input type="submit" value="Start game">
+  </form>
+  {% else %}
+  {{players.0.name}} is in charge of starting game
+  {% endif %}
+{% else %}
+  {% if not round|divisibleby:2 %}
+  <h2>Round {{round|add:'1'}} - Nighttime Assasination</h2>
+  {% else %}
+  <h2>Round {{round|add:'1'}} - Daytime Execution</h2>
+  {% endif %}
+
+  <form action="{% url 'matthews:target' %}" method="POST">
+  {% csrf_token %}
+  <ul>
+    {% for player in players %}
+      <li>
+        <label>
+          <input type="radio" name="target" value="{{player.id}}">
+          {{player.name}}
+          {% if my_player.id == player.id %}
+          (you)
+          {% endif %}
+        </label>
+      </li>
+    {% endfor %}
+      <li>
+        <label>
+          <input type="radio" name="target" value="0">
+          No one
+        </label>
+      </li>
+  </ul>
+  <input type="submit" value="Choose">
+  </form>
+
+{% endif %}
+
+
+{% endblock %}
+
+

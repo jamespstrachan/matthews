@@ -1,0 +1,73 @@
+{% load pipeline %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="/static/images/logo-favicon.png">
+
+    <title>{% spaceless %}{% block title %}{% endblock %}{% endspaceless %}</title>
+
+    {% stylesheet 'main_style' %}
+
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <!-- Bootstrap toggle switch css -->
+    <link href="https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+
+    <style>
+      /* Staging style area, should be tidied into static/scss and compiled before production */
+    </style>
+  </head>
+
+  <body>
+    {% block body %}
+
+      {% if user.is_authenticated %}
+        Signed in as {{ user.first_name }} {{ user.last_name }} |
+        <a class="nav-link" href="{% url 'logout'%}">Sign out</a>
+      {% endif %}
+      <br>
+      {% if user.is_staff %}
+        You are staff member
+      {% endif %}
+
+      {% for message in messages %}
+        <div class="alert alert-{{ message.level_tag }} {{ message.extra_tags }} ">{{ message }}</div>
+      {% endfor %}
+
+
+      {% block content %}
+      (No content in this page)
+      {% endblock %}
+
+    {% endblock %}
+
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+    <script src="https://gitcdn.github.io/bootstrap-toggle/2.2.2/js/bootstrap-toggle.min.js"></script>
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/feather-icons/dist/feather.min.js"></script>
+    <script>
+      feather.replace()
+    </script>
+
+    {% javascript 'main_js' %}
+
+    <script>
+      $(function(){
+        // Staging script area, should be tidied into static/js and compiled before production
+
+      });
+    </script>
+  </body>
+</html>
