@@ -26,7 +26,11 @@
   {% else %}
   {{players.0.name}} is in charge of starting game
   {% endif %}
+
+
 {% else %}
+
+
   {% if not round|divisibleby:2 %}
   <h2>Round {{round|add:'1'}} - Nighttime Assasination</h2>
   {% else %}
@@ -40,7 +44,7 @@
       <li>
         <label>
           <input type="radio" name="target" value="{{player.id}}">
-          {{player.name}}
+          {{player.name}} <i>{{player.character.name}}</i>
           {% if my_player.id == player.id %}
           (you)
           {% endif %}
