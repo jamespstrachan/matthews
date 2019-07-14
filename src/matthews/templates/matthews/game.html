@@ -31,6 +31,7 @@
   <h2>Round {{round|add:'1'}} - {{round|divisibleby:'2'|yesno:"Daytime Execution, Night Crawling"}}</h2>
 
   {% if not my_action %}
+    {% if round %}
     <p>
       {{round|divisibleby:'2'|yesno:"Last night,Earlier today"}}
       {% for dead in deaths %}
@@ -40,6 +41,8 @@
       {% endfor %}
       {{round|divisibleby:'2'|yesno:"was murdered,was executed"}}
     </p>
+    {% endif %}
+
     {% if suspect %}
     <p>
       {{suspect}} is {% if suspect.character_id == MAFIA_ID %}bad{% else %}good{% endif %}

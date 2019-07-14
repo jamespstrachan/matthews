@@ -16,6 +16,6 @@
 <form action="{% url 'matthews:join' game.id %}" method="POST">
 {% csrf_token %}
   <input name="name" placeholder="type your name">
-  <input type="submit" value="join this game">
+  <input type="submit" value="join this game" class="btn btn-primary">
 </form>
 {% endblock %}
