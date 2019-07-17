@@ -72,7 +72,7 @@ def game(request):
         'my_player': my_player,
         'my_action': Action.objects.filter(round=round, done_by=my_player).first(),
         'round':     round,
-        'votes':     Action.objects.filter(round=round-1),
+        'votes':     Action.objects.filter(round=round-1, done_by__game=game),
         'deaths':    game.players.filter(died_in_round=round-1),
         'suspect':   suspect,
         'MAFIA_ID':  MAFIA_ID,
@@ -177,24 +177,29 @@ def save_action(game, done_by, done_to):
 
 
 def yet_to_vote(game, round):
+    """ Return a query idenfying alive players who have not voted in this round
+    """
     return game.players.filter(died_in_round__isnull=True) \
                        .exclude(actions_by__round=round)
 
 
 def who_died(game, round):
+    """ returns a list of players who were killed by the actions of this round
+    """
     if round % 2 == 0: # process day vote
-        nominees = Player.objects.filter(actions_to__round=round,
-                                     actions_to__done_by__died_in_round__isnull=True) \
-                                 .annotate(votes=Count('actions_to')) \
-                                 .order_by('-votes')
+        nominees = game.players.filter(actions_to__round=round,
+                                       actions_to__done_by__died_in_round__isnull=True) \
+                               .annotate(votes=Count('actions_to')) \
+                               .order_by('-votes')
+
         nominee = nominees.first()
         if nominee and nominee.votes > game.players.exclude(died_in_round__isnull=False).count() / 2: # Simple majority
             return [nominee]
     else: # process night actions
-        targets = Player.objects.filter(actions_to__round=round,
-                                        actions_to__done_by__character_id=MAFIA_ID,
-                                        actions_to__done_by__died_in_round__isnull=True) \
-                                .annotate(votes=Count('actions_to')) \
+        targets = game.players.filter(actions_to__round=round,
+                                      actions_to__done_by__character_id=MAFIA_ID,
+                                      actions_to__done_by__died_in_round__isnull=True) \
+                              .annotate(votes=Count('actions_to')) \
                                 .order_by('-votes')
         target = targets.first()
 
@@ -208,7 +213,9 @@ def who_died(game, round):
     return []
 
 
-def did_mafia_win(game): # returns True if so; False if Civilians win; None if game is undecided
+def did_mafia_win(game):
+    """ returns True if so; False if Civilians win; None if game is undecided
+    """
     players = game.players.filter(died_in_round__isnull=True)
     num_players = players.count()
     num_bad = players.filter(character__id=MAFIA_ID).count()

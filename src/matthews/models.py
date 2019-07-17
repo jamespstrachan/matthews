@@ -17,9 +17,9 @@ class Game(models.Model):
 
 
 class Player(models.Model):
-    name      = models.CharField(max_length=12, blank=False, null=False)
-    game      = models.ForeignKey('Game', related_name='players', on_delete=models.CASCADE, blank=False, null=False)
-    character = models.ForeignKey('Character', related_name='players', on_delete=models.PROTECT, blank=True, null=True)
+    name          = models.CharField(max_length=12, blank=False, null=False)
+    game          = models.ForeignKey('Game', related_name='players', on_delete=models.CASCADE, blank=False, null=False)
+    character     = models.ForeignKey('Character', related_name='players', on_delete=models.PROTECT, blank=True, null=True)
     died_in_round = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
