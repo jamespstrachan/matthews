@@ -15,7 +15,6 @@ class Game(models.Model):
         return 'Game {}'.format(self.id)
 
 
-
 class Player(models.Model):
     name          = models.CharField(max_length=12, blank=False, null=False)
     game          = models.ForeignKey('Game', related_name='players', on_delete=models.CASCADE, blank=False, null=False)

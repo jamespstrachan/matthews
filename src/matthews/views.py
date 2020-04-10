@@ -42,45 +42,6 @@ def lobby(request, id):
     return render(request, 'matthews/lobby.html', context)
 
 
-def game(request):
-    play_as_id = request.GET.get('play_as_id')
-    if play_as_id:
-        request.session['player_id'] = int(play_as_id)
-        messages.add_message(request, messages.INFO, 'You are now playing as player {}'.format(play_as_id))
-        return HttpResponseRedirect(reverse('matthews:game'))
-
-    debug = request.GET.get('debug')
-    if debug is not None:
-        request.session['debug'] = int(debug)
-        messages.add_message(request, messages.INFO, 'debug set to {}'.format(debug))
-        return HttpResponseRedirect(reverse('matthews:game'))
-
-    game = Game.objects.get(id=request.session['game_id'])
-    round = calculate_round(game)
-    my_player = Player.objects.filter(id=request.session.get('player_id')).first()
-
-    suspect = None
-    if round % 2 == 0 and my_player.character_id == DETECTIVE_ID:
-        investigation = Action.objects.filter(round=round-1, done_by=my_player).first()
-        suspect = investigation.done_to if investigation else None
-
-    context = {
-        'debug':     request.session.get('debug', 0),
-        'game':      game,
-        'players':   game.players.all().annotate(has_acted=Count('actions_by', filter=Q(actions_by__round=round))),
-        'base_url':  settings.BASE_URL,
-        'my_player': my_player,
-        'my_action': Action.objects.filter(round=round, done_by=my_player).first(),
-        'round':     round,
-        'votes':     Action.objects.filter(round=round-1, done_by__game=game),
-        'deaths':    game.players.filter(died_in_round=round-1),
-        'suspect':   suspect,
-        'MAFIA_ID':  MAFIA_ID,
-        'mafia_win': did_mafia_win(game),
-    }
-    return render(request, 'matthews/game.html', context)
-
-
 def join(request, id):
     game = Game.objects.get(id=id)
     name = request.POST['name']
@@ -125,6 +86,45 @@ def start(request):
     return HttpResponseRedirect(reverse('matthews:game'))
 
 
+def game(request):
+    play_as_id = request.GET.get('play_as_id')
+    if play_as_id:
+        request.session['player_id'] = int(play_as_id)
+        messages.add_message(request, messages.INFO, 'You are now playing as player {}'.format(play_as_id))
+        return HttpResponseRedirect(reverse('matthews:game'))
+
+    debug = request.GET.get('debug')
+    if debug is not None:
+        request.session['debug'] = int(debug)
+        messages.add_message(request, messages.INFO, 'debug set to {}'.format(debug))
+        return HttpResponseRedirect(reverse('matthews:game'))
+
+    game = Game.objects.get(id=request.session['game_id'])
+    round = calculate_round(game)
+    my_player = Player.objects.filter(id=request.session.get('player_id')).first()
+
+    suspect = None
+    if round % 2 == 0 and my_player.character_id == DETECTIVE_ID:
+        investigation = Action.objects.filter(round=round-1, done_by=my_player).first()
+        suspect = investigation.done_to if investigation else None
+
+    context = {
+        'debug':     request.session.get('debug', 0),
+        'game':      game,
+        'players':   game.players.all().annotate(has_acted=Count('actions_by', filter=Q(actions_by__round=round))),
+        'base_url':  settings.BASE_URL,
+        'my_player': my_player,
+        'my_action': Action.objects.filter(round=round, done_by=my_player).first(),
+        'round':     round,
+        'votes':     Action.objects.filter(round=round-1, done_by__game=game),
+        'deaths':    game.players.filter(died_in_round=round-1),
+        'suspect':   suspect,
+        'MAFIA_ID':  MAFIA_ID,
+        'mafia_win': did_mafia_win(game),
+    }
+    return render(request, 'matthews/game.html', context)
+
+
 def target(request):
     game = Game.objects.get(id=request.session['game_id'])
     player = Player.objects.get(id=request.session['player_id'])
@@ -147,8 +147,6 @@ def test500(request):
     raise Exception("Test: An error occurred")
 
 
-
-
 def calculate_round(game):
     return floor(Action.objects.filter(done_by__game=game).count() / game.players.count())
 
@@ -163,9 +161,7 @@ def save_action(game, done_by, done_to):
     # Fill in blank actions for dead players who haven't acted so they don't hold up the game
     non_voters = yet_to_vote(game, round)
     if non_voters.count() == 0:
-        lazy_corpses = game.players.filter(died_in_round__isnull=False) \
-                                   .exclude(actions_by__round=round)
-        for corpse in lazy_corpses:
+        for corpse in yet_to_vote(game, round, False):
             action = Action(round=round, done_by=corpse, done_to=None)
             action.save()
 
@@ -176,39 +172,37 @@ def save_action(game, done_by, done_to):
             victim.save()
 
 
-def yet_to_vote(game, round):
+def yet_to_vote(game, round, is_alive=True):
     """ Return a query idenfying alive players who have not voted in this round
     """
-    return game.players.filter(died_in_round__isnull=True) \
+    return game.players.filter(died_in_round__isnull=is_alive) \
                        .exclude(actions_by__round=round)
 
 
 def who_died(game, round):
     """ returns a list of players who were killed by the actions of this round
     """
-    if round % 2 == 0: # process day vote
-        nominees = game.players.filter(actions_to__round=round,
-                                       actions_to__done_by__died_in_round__isnull=True) \
-                               .annotate(votes=Count('actions_to')) \
-                               .order_by('-votes')
+    nominees = game.players.filter(actions_to__round=round,
+                                   actions_to__done_by__died_in_round__isnull=True) \
+                           .annotate(votes=Count('actions_to')) \
+                           .order_by('-votes')
 
+    if round % 2 == 0: # process day vote
         nominee = nominees.first()
-        if nominee and nominee.votes > game.players.exclude(died_in_round__isnull=False).count() / 2: # Simple majority
+        num_alive_players = game.players.exclude(died_in_round__isnull=False).count()
+        if nominee and nominee.votes > num_alive_players / 2: # Simple majority
             return [nominee]
+
     else: # process night actions
-        targets = game.players.filter(actions_to__round=round,
-                                      actions_to__done_by__character_id=MAFIA_ID,
-                                      actions_to__done_by__died_in_round__isnull=True) \
-                              .annotate(votes=Count('actions_to')) \
-                                .order_by('-votes')
+        targets = nominees.filter(actions_to__done_by__character_id=MAFIA_ID)
         target = targets.first()
 
-        if not target:
-            return []
+        doctor_save_action = Action.objects.filter(round=round, done_to=target,
+                                                   done_by__character_id=DOCTOR_ID,
+                                                   done_by__died_in_round__isnull=True).first()
 
-        if Action.objects.filter(round=round, done_to=target,
-                                 done_by__character_id=DOCTOR_ID,
-                                 done_by__died_in_round__isnull=True).count() == 0:
+        # todo - decide if mafia need majority
+        if target and not doctor_save_action:
             return [target]
     return []
 

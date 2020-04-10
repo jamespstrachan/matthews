@@ -1,11 +1,6 @@
-# Vanilla Django Project
+# Matthews app
 
-Things to do for setup:
+A way to play Matthews with friends without the need for a narrator.
 
-- Add .env file in root dir based on env.example
-- rename `thefirstapp` dir to a name of your choice
-- change `thefirstapp/templates/thefirstapp` dir too
-- sed replace in codebase
-- check that `project/settings.py` doesn't include things you don't want
-- check that default models in `thefirstapp` are applicable, then `manage.py makemigration`
-- `manage.py createsuperuser` to make your first user
+# how to push database copy to AWS instance
+scp -i "/c/Users/james_000/.ssh/danton.pem" ./db.sqlite3 ec2-user@ec2-34-248-158-104.eu-west-1.compute.amazonaws.com:/home/ec2-user/matthews/

@@ -1,5 +1,7 @@
 {% extends "layout.html" %}
+{% load static %}
 {% block content %}
+<div class="page">
 
 {% if not game.date_started %}
   <p>
@@ -28,7 +30,7 @@
 
 {% elif mafia_win is None %}
 
-  <h2>Round {{round|add:'1'}} - {{round|divisibleby:'2'|yesno:"Daytime Execution, Night Crawling"}}</h2>
+  <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{round|divisibleby:'2'|yesno:"Daytime Execution, Night Crawling"}}</h2>
 
   {% if not my_action %}
     {% if round %}
@@ -59,60 +61,66 @@
   {% endif %}
 
 
-  <form action="{% url 'matthews:target' %}" method="POST">
+  <form class="vote-form" action="{% url 'matthews:target' %}" method="POST">
   {% csrf_token %}
-  <ul>
     {% for player in players %}
-      <li>
-        <label class="{% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
-                      {{player.died_in_round|yesno:'mark_dead,mark_dead,'}}
-                      {% if my_action and my_action.done_to == player %}mark_voted{% endif%}
-                      ">
-          {% if not my_action %}
-          <input type="radio" name="target" value="{{player.id}}">
-          {% endif %}
-
+      <input type="radio" name="target" id="player_{{player.id}}" value="{{player.id}}" {%if my_action%}disabled {%if my_action.done_to == player %}checked {%endif%}{%endif%}>
+      <label class="{% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
+                    {{player.died_in_round|yesno:'mark_dead,mark_dead,'}}
+                    "
+             for="player_{{player.id}}">
+        <h2>
           {{player.name}}
-          {% if my_player.id == player.id %}
-            ({{my_player.character}})
+          {% if debug and my_player.id != player.id %}
+          <a class="play_as" href="{% url 'matthews:game' %}?play_as_id={{player.id}}" title="{{player.character.name}}">@</a>
           {% endif %}
-          <i>{{player.has_acted|yesno:'has acted,'}}</i>
-        </label>
-
-        {% if debug %}
-          <i class="float-right">&nbsp; {{player.character.name}}</i>
-          {% if my_player.id != player.id %}
-          <a class="float-right" href="{% url 'matthews:game' %}?play_as_id={{player.id}}">play as</a>
-          {% endif %}
+        </h2>
+        <div class="portrait"></div>
+        <p class="info">
+        {% if my_player.id == player.id %}
+        <span>You, {{my_player.character}}</span>
+        {% elif my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}
+        <span>{{player.character}}</span>
+        {% else %}
+        <span>&nbsp;</span>
         {% endif %}
-      </li>
+        <br>
+        {% if my_player.id == player.id and my_action %}
+        <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}No one {% endif %}</i>
+        {% elif player.has_acted %}
+        <i>has acted</i>
+        {% else %}
+        <i>&nbsp;</i>
+        {% endif %}
+        </p>
+
+        {% if not my_action %}
+        <input type="submit" value="{% spaceless %}
+        {% if my_player.died_in_round is not None %}
+          Haunt
+        {% elif round|divisibleby:2 %}
+          Vote to lynch
+        {% elif my_player.character_id == 1 %}
+          Assasinate
+        {% elif my_player.character_id == 2 %}
+          Cast suspicion
+        {% elif my_player.character_id == 3 %}
+          Save from harm
+        {% elif my_player.character_id == 4 %}
+          Investigate
+        {% endif %}
+        {% endspaceless %}" class="btn btn-primary">
+        {% endif %}
+      </label>
     {% endfor %}
-      <li>
-        <label class="{% if my_action and my_action.done_to is None %}mark_voted{% endif%}">
-          {% if not my_action %}
-          <input type="radio" name="target" value="0" checked>
-          {% endif %}
-          No one
-        </label>
-      </li>
-  </ul>
-  {% if not my_action %}
-    <input type="submit" value="{% spaceless %}
-    {% if my_player.died_in_round is not None %}
-      Haunt
-    {% elif round|divisibleby:2 %}
-      Vote to lynch
-    {% elif my_player.character_id == 1 %}
-      Assasinate
-    {% elif my_player.character_id == 2 %}
-      Suspect
-    {% elif my_player.character_id == 3 %}
-      Save from harm
-    {% elif my_player.character_id == 4 %}
-      Investigate
-    {% endif %}
-    {% endspaceless %}" class="btn btn-primary">
-  {% else %}
+    <input type="radio" name="target" id="player_0" value="0" {%if my_action%}disabled {%if my_action.done_to is None %}checked {%endif%}{%endif%}>
+    <label for="player_0">
+      {% if not my_action %}
+      {% endif %}
+      <h2>No one</h2>
+    </label>
+  <br>
+  {% if my_action %}
     <a class="btn btn-primary" href="{% url 'matthews:game' %}">refresh list</a>
   {% endif %}
   </form>
@@ -131,25 +139,97 @@
 </div>
 {% endif %}
 
+</div>
+
+
+
 <style>
+body { background-color: #5f5c69;}
+.page {
+  max-width: 800px;
+  padding: 2em 2em 10em;
+  margin: 2em auto 20em;
+  background-color: white;
+}
 ul {
 list-style-type: none;
 }
 .mark_bad {
   font-weight: bold;
 }
-.mark_dead {
-  text-decoration: line-through;
+.mark_bad {
+
 }
-.mark_voted {
-  background-color: #fec;
-}
+.mark_dead { filter: grayscale(1); opacity: 0.5;}
 .win_text{
   font-size: 6em;
   color: red;
 }
-</style>
+.play_as {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: none;
+}
+label:hover .play_as { display: block; }
 
+.vote-form {text-align:center;}
+
+[type=radio] {display:none;}
+label {
+  display:inline-block;
+  height: 172px;
+  margin: 1em 1em 4em;
+  position: relative;
+  cursor: pointer;
+  vertical-align: top;
+  transition: 0.1s;
+  background-color: #f2e9e4;
+}
+label > h2{
+  overflow: hidden;
+  padding: 0.1em;
+  margin-bottom: 0em;
+}
+
+[type=radio]:disabled + label { cursor: default; }
+[type=radio]:checked + label
+{
+  transform: scale(1.1);
+  box-shadow: 2px 3px 4px rgba(0,0,0,0.2);
+  background-color: #007bff;
+}
+[type=radio]:checked + label h2 { color: white; }
+
+.portrait {
+  width: 115px;
+  height: 123px;
+  background: url('{% static 'matthews/images/avatar_test.jpg' %}') top left no-repeat #f2e9e4;
+  background-size: 350px 360px;
+  margin: 0em auto 0.5em;
+
+}
+label:nth-child(1) .portrait { background-position: top left; }
+label:nth-child(3) .portrait { background-position: top center; }
+label:nth-child(5) .portrait { background-position: top right; }
+label:nth-child(7) .portrait { background-position: center left; }
+label:nth-child(9) .portrait { background-position: center center; }
+label:nth-child(11) .portrait { background-position: center right; }
+label:nth-child(13) .portrait { background-position: bottom left; }
+label:nth-child(15) .portrait { background-position: bottom center; }
+label:nth-child(17) .portrait { background-position: bottom right; }
+[for=player_0] .portrait { background-image: none;}
+
+.vote-form [type=submit] {
+  width: 100%;
+  margin-top: -3.5em;
+  display: none;
+  z-index: 2;
+  position: relative;
+}
+.vote-form [type=radio]:checked + label [type=submit] {display: block;}
+
+</style>
 
 {% endblock %}
 
