@@ -32,34 +32,65 @@
 
   <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{round|divisibleby:'2'|yesno:"Daytime Execution, Night Crawling"}}</h2>
 
-  {% if not my_action %}
-    {% if round %}
-    <p>
-      {{round|divisibleby:'2'|yesno:"Last night,Earlier today"}}
+
+  <input id="update_opener" type="checkbox" class="d-none" {{my_action|yesno:',checked'}}>
+  <label class="update_panel" for="update_opener">
+  {% if round == 0 %}
+    <h2>Intro to game...</h2>
+  {% else %}
+    <h2>{{round|divisibleby:'2'|yesno:"Last night,Earlier today"}}...</h2>
+    {% if round|divisibleby:'2' %}
       {% for dead in deaths %}
-        {{dead}}
+      {% if my_player.id == dead.id %}
+      <p>
+        You died a painful death!
+        <i>
+          You can not speak to other players until the end of the game.
+          You may make ghostly noises at purely random times.
+          Each night you will get the chance to haunt the dreams of those who wronged you
+          and the community that couldn't keep you safe.
+        </i>
+      </p>
+      {% endif %}
+      <p>
+        A horrible incident at the Bakery left {{dead}} fighting for his life. Police found him with a
+        spatula stuck into his collarbone and he had lost a lot of blood. Our thoughts and prayers are
+        with his family at this time.
+      </p>
       {% empty %}
-        no one
+      <p>
+        Everyone survived.
+      </p>
       {% endfor %}
-      {{round|divisibleby:'2'|yesno:"was murdered,was executed"}}
-    </p>
+    {% else %}
+      <p>
+        {% regroup votes by done_to as votes_for %}
+        {% for target, votes in votes_for %}
+        {% for vote in votes %}
+          {% if forloop.last and not forloop.first %}and{% endif %}
+          {{vote.done_by}}{% if forloop.revcounter > 2 %},{% endif %}
+        {% endfor %} voted for {{target|default_if_none:'no lynching'}}<br>
+        {% endfor %}
+      </p>
+      {% for dead in deaths %}
+      <p>
+        The people have spoken and decided to put {{dead}} to death by hanging.
+      </p>
+      {% empty %}
+      <p>
+        We thought better of our lynching instincts and everyone made it to bed safely.
+      </p>
+      {% endfor %}
     {% endif %}
 
     {% if suspect %}
-    <p>
-      {{suspect}} is {% if suspect.character_id == MAFIA_ID %}bad{% else %}good{% endif %}
+    <p class="secret_note">
+      Psst... {{suspect}} is {% if suspect.character_id == MAFIA_ID %}in the mafia{% else %}one of the good guys{% endif %} - ❤ your favourite snitch x
     </p>
     {% endif %}
 
-    {% if votes and not round|divisibleby:'2' %}
-    <p>
-      {% for vote in votes %}
-      {{vote.done_by}} voted for {{vote.done_to}}<br>
-      {% endfor %}
-    </p>
-    {% endif %}
   {% endif %}
-
+  </label>
 
   <form class="vote-form" action="{% url 'matthews:target' %}" method="POST">
   {% csrf_token %}
@@ -95,21 +126,7 @@
         </p>
 
         {% if not my_action %}
-        <input type="submit" value="{% spaceless %}
-        {% if my_player.died_in_round is not None %}
-          Haunt
-        {% elif round|divisibleby:2 %}
-          Vote to lynch
-        {% elif my_player.character_id == 1 %}
-          Assasinate
-        {% elif my_player.character_id == 2 %}
-          Cast suspicion
-        {% elif my_player.character_id == 3 %}
-          Save from harm
-        {% elif my_player.character_id == 4 %}
-          Investigate
-        {% endif %}
-        {% endspaceless %}" class="btn btn-primary">
+        <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
         {% endif %}
       </label>
     {% endfor %}
@@ -118,6 +135,10 @@
       {% if not my_action %}
       {% endif %}
       <h2>No one</h2>
+
+      {% if not my_action %}
+      <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
+      {% endif %}
     </label>
   <br>
   {% if my_action %}
@@ -146,20 +167,42 @@
 <style>
 body { background-color: #5f5c69;}
 .page {
+  position: relative;
   max-width: 800px;
   padding: 2em 2em 10em;
   margin: 2em auto 20em;
   background-color: white;
 }
-ul {
-list-style-type: none;
-}
-.mark_bad {
-  font-weight: bold;
-}
-.mark_bad {
 
+.update_panel {
+  z-index: 3;
+  position: absolute;
+  width: 17em;
+  height: 3em;
+  border-radius: 0.2em;
+  top: -1em;
+  right: -2em;
+  overflow: hidden;
+  background-color: #fec;
+  box-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+  transform: rotate(10deg);
+  transition: 0.1s;
+  padding-left: 2em;
 }
+[type=checkbox]:checked + .update_panel{
+  display: block;
+  top: 2em;
+  right: 2em;
+  width: 85%;
+  padding: 2em;
+  margin: 5%;
+  min-height: 20em;
+  transform: rotate(-1deg);
+}
+.secret_note {
+  font-family: cursive;
+}
+
 .mark_dead { filter: grayscale(1); opacity: 0.5;}
 .win_text{
   font-size: 6em;
@@ -221,11 +264,12 @@ label:nth-child(17) .portrait { background-position: bottom right; }
 [for=player_0] .portrait { background-image: none;}
 
 .vote-form [type=submit] {
-  width: 100%;
-  margin-top: -3.5em;
+  position: absolute;
+  top: 102%;
+  width: 120%;
+  left: -10%;
   display: none;
   z-index: 2;
-  position: relative;
 }
 .vote-form [type=radio]:checked + label [type=submit] {display: block;}
 

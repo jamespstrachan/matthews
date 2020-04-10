@@ -116,7 +116,7 @@ def game(request):
         'my_player': my_player,
         'my_action': Action.objects.filter(round=round, done_by=my_player).first(),
         'round':     round,
-        'votes':     Action.objects.filter(round=round-1, done_by__game=game),
+        'votes':     Action.objects.filter(round=round-1, done_by__game=game).order_by('done_to'),
         'deaths':    game.players.filter(died_in_round=round-1),
         'suspect':   suspect,
         'MAFIA_ID':  MAFIA_ID,
