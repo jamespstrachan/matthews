@@ -1,6 +1,7 @@
 from datetime import datetime
 from math import floor
 import random
+import hashlib
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
@@ -13,6 +14,7 @@ from django.db.models.functions import Cast, Coalesce
 
 from django_tables2 import RequestConfig
 
+from project.emails import send_email
 from .models import Game, Player, Action
 
 
@@ -29,37 +31,80 @@ def home(request):
 def new_game(request):
     game = Game()
     game.save()
+    name = request.GET['leader']
     messages.add_message(request, messages.INFO, 'New game created')
-    return HttpResponseRedirect(reverse('matthews:lobby', kwargs={'id': game.id}))
+    return join(request, game.id, name, True)
 
 
-def lobby(request, id):
+def make_invite_hash(id, name):
+    cleartext = str(id) + 'invite_hash' + name + settings.SECRET_KEY
+    return hashlib.md5(cleartext.encode('utf-8')).hexdigest()
+
+
+def invite(request, id):
     game = Game.objects.get(id=id)
+
+    if game.date_started:
+        messages.add_message(request, messages.WARNING, "Can't invite new players the game has started")
+        return HttpResponseRedirect(reverse('matthews:game'))
+
+    if request.method == "POST":
+        player_list = request.POST['name_and_email']
+
+        if game.date_started:
+            raise Exception("This game has already started, blame {}".format(game.players.first().name))
+
+        for name, email in (x.split(',') for x in player_list.split('\n')):
+            name   = name.strip()
+            email  = email.strip()
+
+            kwargs = {'id': id, 'name': name, 'hash': make_invite_hash(game.id, name)}
+            url    = settings.BASE_URL + reverse('matthews:join', kwargs=kwargs)
+            msg = "Join game {}".format(url)
+            if '@' in email:
+                send_email([email], 'Join Matthews Game', html_content=msg, text_content=msg)
+            elif not Player.objects.filter(game=game, name=name).first():
+                player = Player(name=name, game=game)
+                player.save()
+            messages.add_message(request, messages.INFO, 'Player {} invited by email with {}'.format(name, url))
+
+        return HttpResponseRedirect(reverse('matthews:invite', kwargs={'id': game.id}))
+
     context = {
         'game':    game,
         'players': game.players.all(),
         'my_player': Player.objects.filter(id=request.session.get('player_id')).first(),
     }
-    return render(request, 'matthews/lobby.html', context)
+    return HttpResponseRedirect(reverse('matthews:game'))
 
 
-def join(request, id):
+def join(request, id, name, hash):
     game = Game.objects.get(id=id)
-    name = request.POST['name']
 
-    if game.date_started:
-        raise Exception("This game has already started, blame {}".format(game.players.first().name))
+    if hash != True and hash != make_invite_hash(game.id, name):
+        messages.add_message(request, messages.INFO, "The link you follwed is invalid, please check and retry")
+        return HttpResponseRedirect(reverse('matthews:home'))
 
-    if Player.objects.filter(game=game, name=name).count():
-        raise Exception("There's already a player called '{}'".format(name))
-
-    player = Player(name=name, game=game)
-    player.save()
+    player = Player.objects.filter(game=game, name=name).first()
+    if not player:
+        player = Player(name=name, game=game)
+        player.save()
 
     request.session['game_id']   = game.id
     request.session['player_id'] = player.id
 
-    messages.add_message(request, messages.INFO, 'Player {} added'.format(name))
+    return HttpResponseRedirect(reverse('matthews:game'))
+
+
+def restart(request):
+    game = Game.objects.get(id=request.session['game_id'])
+    for player in game.players.all():
+        player.actions_by.all().delete()
+        player.died_in_round = None
+        player.character = None
+        player.save()
+    game.date_started = None
+    game.save()
     return HttpResponseRedirect(reverse('matthews:game'))
 
 
@@ -69,7 +114,7 @@ def start(request):
         raise Exception('Only the first player in the game can start it')
 
     num_players = 1 + game.players.count()
-    num_bad = 1 + floor(0.22 * num_players) #todo: add random dither
+    num_bad = 1 + floor(0.19 * num_players) #todo: add random dither
 
     special_character_ids = [DOCTOR_ID, DETECTIVE_ID] + ([MAFIA_ID] * num_bad)
     all_character_ids = special_character_ids + ([CIVILIAN_ID] * (num_players - len(special_character_ids)))
@@ -91,7 +136,6 @@ def game(request):
     play_as_id = request.GET.get('play_as_id')
     if play_as_id:
         request.session['player_id'] = int(play_as_id)
-        messages.add_message(request, messages.INFO, 'You are now playing as player {}'.format(play_as_id))
         return HttpResponseRedirect(reverse('matthews:game'))
 
     debug = request.GET.get('debug')
@@ -100,7 +144,11 @@ def game(request):
         messages.add_message(request, messages.INFO, 'debug set to {}'.format(debug))
         return HttpResponseRedirect(reverse('matthews:game'))
 
-    game = Game.objects.get(id=request.session['game_id'])
+    game_id = request.session.get('game_id')
+    if not game_id:
+        messages.add_message(request, messages.INFO, "You're not currently in any game, follow the link in the invite email to join one")
+        return HttpResponseRedirect(reverse('matthews:home'))
+    game = Game.objects.get(id=game_id)
     round = calculate_round(game)
     my_player = Player.objects.filter(id=request.session.get('player_id')).first()
 
@@ -182,7 +230,7 @@ def game(request):
 
         players = list(players)
         # todo - add extra params for awards, like so:
-        players[2].favourite_person = "James"
+        # eg. players[2].favourite_person = "James"
     else:
         players = players.annotate(has_acted=Count('actions_by', filter=Q(actions_by__round=round)))
 
@@ -290,6 +338,9 @@ def who_died(game, round):
 def did_mafia_win(game):
     """ returns True if so; False if Civilians win; None if game is undecided
     """
+    if not game.date_started:
+        return None
+
     players = game.players.filter(died_in_round__isnull=True)
     num_players = players.count()
     num_bad = players.filter(character__id=MAFIA_ID).count()

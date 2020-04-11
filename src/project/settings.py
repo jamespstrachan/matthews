@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 import os
 import environ
 
+
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 DJANGO_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_BASE_DIR   = os.path.dirname(DJANGO_BASE_DIR)
@@ -21,6 +23,7 @@ REPO_BASE_DIR   = os.path.dirname(DJANGO_BASE_DIR)
 env = environ.Env()
 env.read_env(REPO_BASE_DIR + '/.env')
 
+IS_PRODUCTION = env.bool('IS_PRODUCTION')
 DEBUG         = env.bool('DJANGO_DEBUG', False)
 ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS', default='').split(',')
 SECRET_KEY    = env('DJANGO_SECRET_KEY', default=None)
@@ -213,7 +216,7 @@ PIPELINE = {
 # Our application settings
 
 BLOCK_EMAIL_SENDING     = env.bool('DJANGO_BLOCK_EMAIL_SENDING', default=True)
-SEND_ALL_EMAILS_TO      = env('DJANGO_SEND_ALL_EMAILS_TO', default=False)
+SEND_ALL_EMAILS_TO      = env('DJANGO_SEND_ALL_EMAILS_TO', default=None)
 CUSTOMER_SERVICES_EMAIL = env('DJANGO_CUSTOMER_SERVICES_EMAIL', default=None)
 SYSTEM_FROM_EMAIL       = env('DJANGO_SYSTEM_FROM_EMAIL', default=False)
 

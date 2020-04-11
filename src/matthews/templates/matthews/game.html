@@ -1,45 +1,34 @@
 {% extends "layout.html" %}
 {% load static %}
 {% block content %}
-<div class="page">
+
 
 {% if not game.date_started %}
-  <p>
-    Encourage others to join: <input value="{{base_url}}{% url 'matthews:lobby' game.id %}">
-  </p>
-
-  <ul>
-    {% for player in players %}
-      <li>
-        {{player.name}}
-        {% if my_player.id == player.id %}
-        (you)
-        {% endif %}
-      </li>
-    {% endfor %}
-  </ul>
-
-  {% if my_player.id == players.0.id  %}
-  <form action="{% url 'matthews:start' %}" method="POST">
-    {% csrf_token %}
-    <input type="submit" value="Start game" class="btn btn-primary">
-  </form>
-  {% else %}
-  {{players.0.name}} is in charge of starting game
-  {% endif %}
-
+  <h2>Game setup</h2>
 {% else %}
-
   {% if mafia_win is None %}
-  <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{round|divisibleby:'2'|yesno:"Daytime discussions,Nightime creeping"}}</h2>
+    <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{round|divisibleby:'2'|yesno:"Daytime discussions,Nightime creeping"}}</h2>
   {% else %}
-  <h2>Performance review</h2>
+    <h2>Performance review</h2>
   {% endif %}
 
   <input id="update_opener" type="checkbox" class="d-none" {{my_action|yesno:',checked'}}>
   <label class="update_panel" for="update_opener">
   {% if round == 0 %}
-    <h2>Intro to game...</h2>
+    <h2>All was not well in the community</h2>
+    <p>The cracks were showing. The social fabric frayed. People did not know who to trust</p>
+    <p>
+      After weeks of tension, today trouble errupts. You hear a loud argument in the street - you
+      investigate. There's a mob forming outside and with each joining person the clamouring rises.
+    </p>
+    <p>
+      We want answers. Some want blood. All want to see a change.
+    </p>
+    <p>
+      It starts today.
+    </p>
+    <br><br>
+    <span class="btn btn-primary float-right">Choose the player you'd like to lynch, or push for peace</a>
   {% elif mafia_win is not None %}
     <h2>In conclusion...</h2>
     <p>
@@ -103,88 +92,95 @@
       Psst... {{suspect}} is {% if suspect.character_id == MAFIA_ID %}in the mafia{% else %}one of the good guys{% endif %} - ❤ your favourite snitch x
     </p>
     {% endif %}
-
   {% endif %}
   </label>
 
-  <form class="vote-form {% if mafia_win is not None %}game_over{% endif %}" action="{% url 'matthews:target' %}" method="POST">
-  {% csrf_token %}
-    {% for player in players %}
-      <input type="radio" name="target" id="player_{{player.id}}" value="{{player.id}}" {%if my_action or mafia_win is not None%}disabled {%if my_action.done_to == player %}checked {%endif%}{%endif%}>
-      <label class="{% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
-                    {{player.died_in_round|yesno:'mark_dead,mark_dead,'}}
-                    "
-             for="player_{{player.id}}">
-        <h2>
-          {{player.name}}
-          {% if debug and my_player.id != player.id %}
-          <a class="play_as" href="{% url 'matthews:game' %}?play_as_id={{player.id}}" title="{{player.character.name}}">@</a>
-          {% endif %}
-        </h2>
-        <div class="portrait"></div>
-        <p class="info">
-        {% if my_player.id == player.id %}
-        <span>You, {{my_player.character}}</span>
-        {% elif my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}
-        <span>{{player.character}}</span>
-        {% else %}
-        <span>&nbsp;</span>
-        {% endif %}
-        <br>
-        {% if my_player.id == player.id and my_action %}
-        <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}No one {% endif %}</i>
-        {% elif player.has_acted %}
-        <i>has acted</i>
-        {% else %}
-        <i>&nbsp;</i>
-        {% endif %}
-        </p>
+{% endif %}
 
-        {% if not my_action %}
-        <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
+
+
+<form class="vote-form {% if mafia_win is not None %}game_over{% endif %}" action="{% url 'matthews:target' %}" method="POST">
+{% csrf_token %}
+  {% for player in players %}
+    <input type="radio" name="target" id="player_{{player.id}}" value="{{player.id}}" {%if my_action or mafia_win is not None or not game.date_started%}disabled {%if my_action.done_to == player %}checked {%endif%}{%endif%}>
+    <label class="{% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
+                  {{player.died_in_round|yesno:'mark_dead,mark_dead,'}}
+                  "
+           for="player_{{player.id}}">
+      <h2>
+        {{player.name}}
+        {% if debug and my_player.id != player.id %}
+        <a class="play_as" href="{% url 'matthews:game' %}?play_as_id={{player.id}}" title="{{player.character.name}}">@</a>
         {% endif %}
-      </label>
-      <div class="player_results">
-      {% if mafia_win is not None %}
-        <h4>
-          {{player.character}},
-          {% if player.died_in_round %}
-            {{player.died_in_round|divisibleby:'2'|yesno:"lynched, murdered"}} in round {{player.died_in_round}}
-          {% else %}
-            survived
-          {% endif %}
-           fav:{{player.favourite_person}}
-        </h4>
-        <p>
-          Killed {{player.killed_bad|add:player.lynched_bad}} bad guy{{player.killed_bad|add:player.lynched_bad|pluralize}} and
-            {{player.killed_good|add:player.lynched_good}} good guy{{player.killed_good|add:player.lynched_good|pluralize}}<br>
-          {% if player.character_id == 1 %}
-            Effective assisination: {{player.successful_kill_pc|floatformat:0}}%<br>
-            {{player.killed_doctor|yesno:"Killed,Failed to kill"}} doctor
-            {% if player.killed_doctor != player.killed_detective %}but{% else %}and{% endif %}
-            {{player.killed_detective|yesno:"killed,failed to kill"}} detective<br>
-          {% elif player.character_id == 2 %}
-            Suspicions were accurate {{player.suspected_bad_pc|floatformat:0}}% of the time<br>
-          {% elif player.character_id == 3 %}
-            Saved {{player.lives_saved}} live{{player.lives_saved|pluralize}}<br>
-          {% elif player.character_id == 4 %}
-            Mafia discovered: {{player.mafia_found}}<br>
-          {% endif %}
-          {% if player.character_id != MAFIA_ID %}
-            Was attacked {{player.mafia_target}} time{{player.mafia_target|pluralize}}
-          {% endif %}
-          {% if player.character_id == MAFIA_ID and player.mafia_target %}
-            Was attacked by fellow mafia members {{player.mafia_target}} time{{player.mafia_target|pluralize}}
-          {% endif %}
-        </p>
+      </h2>
+      <div class="portrait"></div>
+      <p class="info">
+      {% if my_player.id == player.id %}
+      <span>You, {{my_player.character}}</span>
+      {% elif my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}
+      <span>{{player.character}}</span>
+      {% else %}
+      <span>&nbsp;</span>
       {% endif %}
-      </div>
-    {% endfor %}
-    <input type="radio" name="target" id="player_0" value="0" {%if my_action or mafia_win is not None%}disabled {%if my_action and my_action.done_to is None %}checked {%endif%}{%endif%}>
+      <br>
+      {% if my_player.id == player.id and my_action %}
+      <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}Nobody {% endif %}</i>
+      {% elif player.has_acted %}
+      <i>has acted</i>
+      {% else %}
+      <i>&nbsp;</i>
+      {% endif %}
+      </p>
+
+      {% if not my_action %}
+      <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
+      {% endif %}
+    </label>
+    <div class="player_results">
+    {% if mafia_win is not None %}
+      <h4>
+        {{player.character}},
+        {% if player.died_in_round %}
+          {{player.died_in_round|divisibleby:'2'|yesno:"lynched, murdered"}} in round {{player.died_in_round}}
+        {% else %}
+          survived
+        {% endif %}
+      </h4>
+      <p>
+        Killed {{player.killed_bad|add:player.lynched_bad}} bad guy{{player.killed_bad|add:player.lynched_bad|pluralize}} and
+          {{player.killed_good|add:player.lynched_good}} good guy{{player.killed_good|add:player.lynched_good|pluralize}}<br>
+        {% if player.character_id == 1 %}
+          Effective assisination: {{player.successful_kill_pc|floatformat:0}}%<br>
+          {{player.killed_doctor|yesno:"Killed,Failed to kill"}} doctor
+          {% if player.killed_doctor != player.killed_detective %}but{% else %}and{% endif %}
+          {{player.killed_detective|yesno:"killed,failed to kill"}} detective<br>
+        {% elif player.character_id == 2 %}
+          Suspicions were accurate {{player.suspected_bad_pc|floatformat:0}}% of the time<br>
+        {% elif player.character_id == 3 %}
+          Saved {{player.lives_saved}} live{{player.lives_saved|pluralize}}<br>
+        {% elif player.character_id == 4 %}
+          Mafia discovered: {{player.mafia_found}}<br>
+        {% endif %}
+        {% if player.character_id != MAFIA_ID %}
+          {% if player.mafia_target %}
+          Was attacked {{player.mafia_target}} time{{player.mafia_target|pluralize}}
+          {% else %}
+          Was never targeted by the mafia
+          {% endif %}
+        {% endif %}
+        {% if player.character_id == MAFIA_ID and player.mafia_target %}
+          Was attacked by fellow mafia members {{player.mafia_target}} time{{player.mafia_target|pluralize}}
+        {% endif %}
+      </p>
+    {% endif %}
+    </div>
+  {% endfor %}
+  {% if game.date_started %}
+    <input type="radio" name="target" id="player_0" value="0" {%if my_action or mafia_win is not None or not game.date_started %}disabled {%if my_action and my_action.done_to is None %}checked {%endif%}{%endif%}>
     <label for="player_0">
       {% if not my_action %}
       {% endif %}
-      <h2>No one</h2>
+      <h2>Nobody</h2>
 
       {% if not my_action %}
       <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
@@ -200,36 +196,48 @@
         </p>
       </div>
     {% endif %}
-  <br>
-  {% if my_action %}
-    <a class="btn btn-primary" href="{% url 'matthews:game' %}">refresh list</a>
   {% endif %}
-  </form>
+<br>
+{% if my_action %}
+  <a class="btn btn-primary" href="{% url 'matthews:game' %}">refresh list</a>
+{% endif %}
+</form>
 
 
+{% if not game.date_started %}
+  {% if my_player.id == players.0.id  %}
+    <h2>Invite more players</h2>
+    <form action="{% url 'matthews:invite' game.id %}" method="POST">
+    {% csrf_token %}
+      <textarea name="name_and_email" class="w-100 h-5" rows=8 placeholder="add like: Steve, stevie@gmail.com  (separated by new line)"></textarea>
+      <p>(we don't store the email address, we send a single invite email)</p>
+      <input type="submit" value="Invite to game" class="btn btn-primary">
+    </form>
+
+    <h2>or</h2>
+    <form action="{% url 'matthews:start' %}" method="POST" onclick="confirm('Have all invited players joined and you are ready to start?')">
+      {% csrf_token %}
+      <input type="submit" value="Start game" class="btn btn-primary">
+    </form>
+  {% else %}
+    <h2>Waiting for all invited players to join</h2>
+    {{players.0.name}} is in charge of starting game, bug them if you think we should just crack on with it
+  {% endif %}
+{% else %}
+  {% if my_player.id == players.0.id  %}
+  <a class="btn btn-danger float-right" href="{% url 'matthews:restart'%}"
+     onclick="return confirm('Are you sure? This will return all players to the setup stage and delete their characters and moves from this game.');"
+     >Restart whole game</a>
+  {% endif %}
 
   {% if debug %}
   <p class="mt-5">
     <a class="btn btn-danger float-right" href="{% url 'matthews:cast-all' %}">Cast all remaining votes</a>
   </p>
   {% endif %}
-
 {% endif %}
 
-</div>
-
-
-
 <style>
-body { background-color: #5f5c69;}
-.page {
-  position: relative;
-  max-width: 800px;
-  padding: 2em 2em 10em;
-  margin: 2em auto 20em;
-  background-color: white;
-}
-
 .update_panel {
   z-index: 3;
   position: absolute;
@@ -252,6 +260,7 @@ body { background-color: #5f5c69;}
   width: 85%;
   padding: 2em;
   margin: 5%;
+  height: auto;
   min-height: 20em;
   transform: rotate(-1deg);
 }
