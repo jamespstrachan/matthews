@@ -142,7 +142,7 @@
       <div class="portrait"></div>
       <p class="info">
       {% if my_player.id == player.id %}
-      <span>You, {{my_player.character}}</span>
+      <span>You, {{my_player.character|default_if_none:'welcome'}}</span>
       {% elif my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}
       <span>{{player.character}}</span>
       {% else %}
