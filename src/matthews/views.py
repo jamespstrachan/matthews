@@ -2,10 +2,11 @@ from datetime import datetime
 from math import floor
 import random
 import hashlib
+import re
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect, Http404
+from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.urls import reverse
 from django.contrib import messages
 from django.conf import settings
@@ -149,6 +150,13 @@ def game(request):
         messages.add_message(request, messages.INFO, "You're not currently in any game, follow the link in the invite email to join one")
         return HttpResponseRedirect(reverse('matthews:home'))
     game = Game.objects.get(id=game_id)
+
+    newest_action = Action.objects.filter(done_by__game=game).order_by('-id').first()
+    newest_action_id = newest_action.id if newest_action else 0
+    if request.GET.get('any_actions_since'):
+        new_actions = newest_action_id > int(request.GET.get('any_actions_since'))
+        return HttpResponse(newest_action_id if new_actions else 0);
+
     round = calculate_round(game)
     my_player = Player.objects.filter(id=request.session.get('player_id')).first()
 
@@ -212,10 +220,10 @@ def game(request):
                                                                         character_id=CIVILIAN_ID,
                                                                         actions_by__round__iregex=night_regex,
                                                                         actions_by__done_to__character_id__in=bad_guy_ids)), FloatField())
-                                                    / Cast(Coalesce(F('died_in_round'), round) , FloatField())
+                                                    / Cast(Coalesce(F('died_in_round'), round) + 1 , FloatField())
                                                     * 2 * 100
                         ).annotate(successful_kill_pc=Cast(F('killed_good'), FloatField())
-                                                    / Cast(Coalesce(F('died_in_round'), round) , FloatField())
+                                                    / Cast(Coalesce(F('died_in_round') + 1, round) , FloatField())
                                                     * 2 * 100
                         ).annotate(mafia_target=Count('actions_to', distinct=True,
                                                      filter=Q(was_alive_to_be_acted_on,
@@ -234,23 +242,54 @@ def game(request):
     else:
         players = players.annotate(has_acted=Count('actions_by', filter=Q(actions_by__round=round)))
 
+    deaths = game.players.filter(died_in_round=round-1)
+    random.seed(game.id+round)
+
     context = {
         'debug':     request.session.get('debug', 0),
-        'game':      game,
-        'players':   players,
         'base_url':  settings.BASE_URL,
+        'game':      game,
+        'round':     round,
+        'players':   players,
         'my_player': my_player,
         'my_action': Action.objects.filter(round=round, done_by=my_player).first(),
-        'round':     round,
+        'newest_action_id': newest_action_id,
         'votes':     Action.objects.filter(round=round-1, done_by__game=game) \
-                                   .filter(Q(done_by__died_in_round__gte=round)| Q(done_by__died_in_round__isnull=True)) \
+                                   .filter(Q(done_by__died_in_round__gte=round) | Q(done_by__died_in_round__isnull=True)) \
                                    .order_by('done_to'),
-        'deaths':    game.players.filter(died_in_round=round-1),
+        'deaths':    deaths,
+        'death_report': make_death_report(deaths[0].name) if deaths else '',
         'suspect':   suspect,
         'MAFIA_ID':  MAFIA_ID,
         'mafia_win': mafia_win,
     }
     return render(request, 'matthews/game.html', context)
+
+
+def make_death_report(name):
+    templates = [
+        [
+        "A horrible incident at the [Bakery,School,Garden Center,Polio Ward] left {{name}} dead as [a dingbat,a doornail,Jimmy Saville].",
+        "Locals came across a [frankly baffling] mystery this morning when they discovered the body of {{name}} locked inside a [suitcase,mini-bar,chest freezer].",
+        "There was [chaos,pandemonium,a grim silence] at the [farmers' market] this morning when {{name}}'s [head,arm,spine] was discovered floating in the communal [milk,ale,water] barrel.",
+        ],[
+        "[Police,First-responders,A young child] found the body with a [spatula,baked potato,half-complete Airfix kit] stuck into its [collarbone,clavicle,right temple] and having lost a lot of blood.",
+        "The cause of death was unknown \"Apart from [being dead,their pale colour,male-pattern baldness] they appeared to be in peak physical condition\", said [the coroner,the chief of police,Mrs Ronson from number 34].",
+        "Authorities could only identify the body by its [winning smile,nubile physique,luscious sideburns] and [Norway,penis,Mickey Mouse]-shaped birth mark.",
+        ],[
+        "Our thoughts, prayers and [best wishes,cash prizes,sexy times] are with [the family,the whole world,no one in particular] at this difficult time.",
+        "The deceased leaves behind their pet [dog,iguana,zebra] {{name}} Jr. and an unmoved [spouse,set of triplets,mother-in-law].",
+        "\"They were always into [hang-gliding,pot-holing,archery]\", [a close friend,a passing cyclist,a disembodied voice] remarked \"so I guess it's what they would have wanted\"",
+        ],
+    ]
+
+    report_lines = (re.sub(r'\[(.*?)\]',
+                           lambda m: random.choice(m.group(1).split(',')),
+                           random.choice(x).replace('{{name}}', name)
+                           )
+                    for x in templates)
+    return "\n\n".join(report_lines)
+
 
 
 def target(request):
@@ -263,7 +302,6 @@ def target(request):
 
     save_action(game, player, target)
 
-    messages.add_message(request, messages.INFO, 'Saved action')
     return HttpResponseRedirect(reverse('matthews:game'))
 
 
@@ -310,22 +348,27 @@ def yet_to_vote(game, round, is_alive=True):
 def who_died(game, round):
     """ returns a list of players who were killed by the actions of this round
     """
-    nominees = game.players.filter(actions_to__round=round,
-                                   actions_to__done_by__died_in_round__isnull=True) \
-                           .annotate(votes=Count('actions_to')) \
-                           .order_by('-votes')
 
     if round % 2 == 0: # process day vote
+        nominees = game.players.filter(actions_to__round=round,
+                                       actions_to__done_by__died_in_round__isnull=True) \
+                               .annotate(votes=Count('actions_to')) \
+                               .order_by('-votes')
         nominee = nominees.first()
         num_alive_players = game.players.exclude(died_in_round__isnull=False).count()
         if nominee and nominee.votes > num_alive_players / 2: # Simple majority
             return [nominee]
 
     else: # process night actions
-        targets = nominees.filter(actions_to__done_by__character_id=MAFIA_ID)
+        targets = game.players.filter(actions_to__round=round,
+                                      actions_to__done_by__died_in_round__isnull=True,
+                                      actions_to__done_by__character_id=MAFIA_ID) \
+                           .annotate(votes=Count('actions_to')) \
+                           .order_by('-votes')
         target = targets.first()
 
-        doctor_save_action = Action.objects.filter(round=round, done_to=target,
+        doctor_save_action = Action.objects.filter(done_by__game=game,
+                                                   round=round, done_to=target,
                                                    done_by__character_id=DOCTOR_ID,
                                                    done_by__died_in_round__isnull=True).first()
 
@@ -361,5 +404,4 @@ def cast_all(request):
     for player in non_voters:
         save_action(game, player, target)
 
-    messages.add_message(request, messages.INFO, '{} votes cast'.format(len(non_voters)))
     return HttpResponseRedirect(reverse('matthews:game'))

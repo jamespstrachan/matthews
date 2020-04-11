@@ -1,15 +1,15 @@
 {% spaceless %}
   {% if player.died_in_round is not None %}
-    Haunt
+    haunt
   {% elif round|divisibleby:2 %}
-    Vote to lynch
+    vote to lynch
   {% elif player.character_id == 1 %}
-    Assasinate
+    assasinate
   {% elif player.character_id == 2 %}
-    Cast suspicion
+    bet is bad
   {% elif player.character_id == 3 %}
-    Save from harm
+    save from harm
   {% elif player.character_id == 4 %}
-    Investigate
+    investigate
   {% endif %}
 {% endspaceless %}
