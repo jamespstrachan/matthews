@@ -28,15 +28,30 @@
   {{players.0.name}} is in charge of starting game
   {% endif %}
 
-{% elif mafia_win is None %}
+{% else %}
 
-  <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{round|divisibleby:'2'|yesno:"Daytime Execution, Night Crawling"}}</h2>
-
+  {% if mafia_win is None %}
+  <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{round|divisibleby:'2'|yesno:"Daytime discussions,Nightime creeping"}}</h2>
+  {% else %}
+  <h2>Performance review</h2>
+  {% endif %}
 
   <input id="update_opener" type="checkbox" class="d-none" {{my_action|yesno:',checked'}}>
   <label class="update_panel" for="update_opener">
   {% if round == 0 %}
     <h2>Intro to game...</h2>
+  {% elif mafia_win is not None %}
+    <h2>In conclusion...</h2>
+    <p>
+    {% if mafia_win %}
+      With {{deaths.0}}'s last breath they gasped "you'll never divide us" - little
+      did they know it was already too late.
+    {% else %}
+      With {{deaths.0}}'s demise the dark cloud lifted from the people. The rot had been stopped and
+      the survivors lived in peace and harmony. For now...
+    {% endif %}
+    </p>
+
   {% else %}
     <h2>{{round|divisibleby:'2'|yesno:"Last night,Earlier today"}}...</h2>
     {% if round|divisibleby:'2' %}
@@ -53,9 +68,9 @@
       </p>
       {% endif %}
       <p>
-        A horrible incident at the Bakery left {{dead}} fighting for his life. Police found him with a
-        spatula stuck into his collarbone and he had lost a lot of blood. Our thoughts and prayers are
-        with his family at this time.
+        A horrible incident at the Bakery left {{dead}} fighting for their life. Police found the body with a
+        spatula stuck into its collarbone and it had lost a lot of blood. Our thoughts and prayers are
+        with the family at this difficult time.
       </p>
       {% empty %}
       <p>
@@ -92,10 +107,10 @@
   {% endif %}
   </label>
 
-  <form class="vote-form" action="{% url 'matthews:target' %}" method="POST">
+  <form class="vote-form {% if mafia_win is not None %}game_over{% endif %}" action="{% url 'matthews:target' %}" method="POST">
   {% csrf_token %}
     {% for player in players %}
-      <input type="radio" name="target" id="player_{{player.id}}" value="{{player.id}}" {%if my_action%}disabled {%if my_action.done_to == player %}checked {%endif%}{%endif%}>
+      <input type="radio" name="target" id="player_{{player.id}}" value="{{player.id}}" {%if my_action or mafia_win is not None%}disabled {%if my_action.done_to == player %}checked {%endif%}{%endif%}>
       <label class="{% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
                     {{player.died_in_round|yesno:'mark_dead,mark_dead,'}}
                     "
@@ -129,8 +144,43 @@
         <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
         {% endif %}
       </label>
+      <div class="player_results">
+      {% if mafia_win is not None %}
+        <h4>
+          {{player.character}},
+          {% if player.died_in_round %}
+            {{player.died_in_round|divisibleby:'2'|yesno:"lynched, murdered"}} in round {{player.died_in_round}}
+          {% else %}
+            survived
+          {% endif %}
+           fav:{{player.favourite_person}}
+        </h4>
+        <p>
+          Killed {{player.killed_bad|add:player.lynched_bad}} bad guy{{player.killed_bad|add:player.lynched_bad|pluralize}} and
+            {{player.killed_good|add:player.lynched_good}} good guy{{player.killed_good|add:player.lynched_good|pluralize}}<br>
+          {% if player.character_id == 1 %}
+            Effective assisination: {{player.successful_kill_pc|floatformat:0}}%<br>
+            {{player.killed_doctor|yesno:"Killed,Failed to kill"}} doctor
+            {% if player.killed_doctor != player.killed_detective %}but{% else %}and{% endif %}
+            {{player.killed_detective|yesno:"killed,failed to kill"}} detective<br>
+          {% elif player.character_id == 2 %}
+            Suspicions were accurate {{player.suspected_bad_pc|floatformat:0}}% of the time<br>
+          {% elif player.character_id == 3 %}
+            Saved {{player.lives_saved}} live{{player.lives_saved|pluralize}}<br>
+          {% elif player.character_id == 4 %}
+            Mafia discovered: {{player.mafia_found}}<br>
+          {% endif %}
+          {% if player.character_id != MAFIA_ID %}
+            Was attacked {{player.mafia_target}} time{{player.mafia_target|pluralize}}
+          {% endif %}
+          {% if player.character_id == MAFIA_ID and player.mafia_target %}
+            Was attacked by fellow mafia members {{player.mafia_target}} time{{player.mafia_target|pluralize}}
+          {% endif %}
+        </p>
+      {% endif %}
+      </div>
     {% endfor %}
-    <input type="radio" name="target" id="player_0" value="0" {%if my_action%}disabled {%if my_action.done_to is None %}checked {%endif%}{%endif%}>
+    <input type="radio" name="target" id="player_0" value="0" {%if my_action or mafia_win is not None%}disabled {%if my_action and my_action.done_to is None %}checked {%endif%}{%endif%}>
     <label for="player_0">
       {% if not my_action %}
       {% endif %}
@@ -140,6 +190,16 @@
       <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
       {% endif %}
     </label>
+    {% if mafia_win is not None %}
+      <div class="player_results">
+        <h4>The choice to do nothing, survived!</h4>
+        <p>
+          Killed: no bad guys, no good guys - super nice dude<br>
+          Lynched 22 times and did nothing wrong<br>
+          Saved by the doctor, who is an idiot<br>
+        </p>
+      </div>
+    {% endif %}
   <br>
   {% if my_action %}
     <a class="btn btn-primary" href="{% url 'matthews:game' %}">refresh list</a>
@@ -154,10 +214,6 @@
   </p>
   {% endif %}
 
-{% else %}
-<div class="win_text">
-  {{mafia_win|yesno:'The Bad Guys Win, The Good Guys Win,'}}
-</div>
 {% endif %}
 
 </div>
@@ -252,15 +308,15 @@ label > h2{
   margin: 0em auto 0.5em;
 
 }
-label:nth-child(1) .portrait { background-position: top left; }
-label:nth-child(3) .portrait { background-position: top center; }
-label:nth-child(5) .portrait { background-position: top right; }
-label:nth-child(7) .portrait { background-position: center left; }
-label:nth-child(9) .portrait { background-position: center center; }
-label:nth-child(11) .portrait { background-position: center right; }
-label:nth-child(13) .portrait { background-position: bottom left; }
-label:nth-child(15) .portrait { background-position: bottom center; }
-label:nth-child(17) .portrait { background-position: bottom right; }
+label:nth-child(3) .portrait { background-position: top left; }
+label:nth-child(6) .portrait { background-position: top center; }
+label:nth-child(9) .portrait { background-position: top right; }
+label:nth-child(12) .portrait { background-position: center left; }
+label:nth-child(15) .portrait { background-position: center center; }
+label:nth-child(18) .portrait { background-position: center right; }
+label:nth-child(21) .portrait { background-position: bottom left; }
+label:nth-child(24) .portrait { background-position: bottom center; }
+label:nth-child(27) .portrait { background-position: bottom right; }
 [for=player_0] .portrait { background-image: none;}
 
 .vote-form [type=submit] {
@@ -272,6 +328,18 @@ label:nth-child(17) .portrait { background-position: bottom right; }
   z-index: 2;
 }
 .vote-form [type=radio]:checked + label [type=submit] {display: block;}
+
+.player_results {
+  width: 65%;
+  margin: 1em;
+  text-align: left;
+  padding: 1em;
+  display: none;
+}
+
+.game_over .player_results {
+  display: inline-block;
+}
 
 </style>
 

@@ -8,7 +8,8 @@ from django.http import HttpResponseRedirect, Http404
 from django.urls import reverse
 from django.contrib import messages
 from django.conf import settings
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F, FloatField
+from django.db.models.functions import Cast, Coalesce
 
 from django_tables2 import RequestConfig
 
@@ -108,19 +109,98 @@ def game(request):
         investigation = Action.objects.filter(round=round-1, done_by=my_player).first()
         suspect = investigation.done_to if investigation else None
 
+    players = game.players.all()
+
+    mafia_win = did_mafia_win(game)
+    if mafia_win is not None:
+        bad_guy_ids = [MAFIA_ID]
+        good_guy_ids = [CIVILIAN_ID, DOCTOR_ID, DETECTIVE_ID]
+        day_regex   = '^\d*[02468]$'
+        night_regex = '^\d*[13579]$'
+        was_alive_to_act         = Q(actions_by__round__lte=F('died_in_round')) | Q(died_in_round__isnull=True)
+        was_alive_to_be_acted_on = Q(actions_to__round__lte=F('died_in_round')) | Q(died_in_round__isnull=True)
+        players = players.annotate(lynched_bad=Count('actions_by', distinct=True,
+                                                     filter=Q(was_alive_to_act,
+                                                              actions_by__round__iregex=day_regex,
+                                                              actions_by__done_to__character_id__in=bad_guy_ids,
+                                                              actions_by__done_to__died_in_round=F('actions_by__round')))
+                        ).annotate(lynched_good=Count('actions_by', distinct=True,
+                                                      filter=Q(was_alive_to_act,
+                                                               actions_by__round__iregex=day_regex,
+                                                               actions_by__done_to__character_id__in=good_guy_ids,
+                                                               actions_by__done_to__died_in_round=F('actions_by__round')))
+                        ).annotate(killed_bad=Count('actions_by', distinct=True,
+                                                    filter=Q(was_alive_to_act,
+                                                             character_id=MAFIA_ID,
+                                                             actions_by__round__iregex=night_regex,
+                                                             actions_by__done_to__character_id__in=bad_guy_ids,
+                                                             actions_by__done_to__died_in_round=F('actions_by__round')))
+                        ).annotate(killed_good=Count('actions_by', distinct=True,
+                                                     filter=Q(was_alive_to_act,
+                                                              character_id=MAFIA_ID,
+                                                              actions_by__round__iregex=night_regex,
+                                                              actions_by__done_to__character_id__in=good_guy_ids,
+                                                              actions_by__done_to__died_in_round=F('actions_by__round')))
+                        ).annotate(killed_doctor=Count('actions_by', distinct=True,
+                                                     filter=Q(was_alive_to_act,
+                                                              character_id=MAFIA_ID,
+                                                              actions_by__round__iregex=night_regex,
+                                                              actions_by__done_to__character_id=DOCTOR_ID,
+                                                              actions_by__done_to__died_in_round=F('actions_by__round')))
+                        ).annotate(killed_detective=Count('actions_by', distinct=True,
+                                                     filter=Q(was_alive_to_act,
+                                                              character_id=MAFIA_ID,
+                                                              actions_by__round__iregex=night_regex,
+                                                              actions_by__done_to__character_id=DETECTIVE_ID,
+                                                              actions_by__done_to__died_in_round=F('actions_by__round')))
+                        ).annotate(lives_saved=Count('actions_by__round', distinct=True,
+                                                     filter=Q(was_alive_to_act,
+                                                              character_id=DOCTOR_ID,
+                                                              actions_by__round__iregex=night_regex,
+                                                              actions_by__done_to__actions_to__done_by__character_id__in=bad_guy_ids,
+                                                              actions_by__done_to__actions_to__round=F('actions_by__round')))
+                        ).annotate(suspected_bad_pc=Cast(Count('actions_by', distinct=True,
+                                                               filter=Q(was_alive_to_act,
+                                                                        character_id=CIVILIAN_ID,
+                                                                        actions_by__round__iregex=night_regex,
+                                                                        actions_by__done_to__character_id__in=bad_guy_ids)), FloatField())
+                                                    / Cast(Coalesce(F('died_in_round'), round) , FloatField())
+                                                    * 2 * 100
+                        ).annotate(successful_kill_pc=Cast(F('killed_good'), FloatField())
+                                                    / Cast(Coalesce(F('died_in_round'), round) , FloatField())
+                                                    * 2 * 100
+                        ).annotate(mafia_target=Count('actions_to', distinct=True,
+                                                     filter=Q(was_alive_to_be_acted_on,
+                                                              actions_to__round__iregex=night_regex,
+                                                              actions_to__done_by__character_id__in=bad_guy_ids))
+                        ).annotate(mafia_found=Count('actions_by', distinct=True,
+                                                    filter=Q(was_alive_to_act,
+                                                             character_id=DETECTIVE_ID,
+                                                             actions_by__round__iregex=night_regex,
+                                                             actions_by__done_to__character_id__in=bad_guy_ids))
+        )
+
+        players = list(players)
+        # todo - add extra params for awards, like so:
+        players[2].favourite_person = "James"
+    else:
+        players = players.annotate(has_acted=Count('actions_by', filter=Q(actions_by__round=round)))
+
     context = {
         'debug':     request.session.get('debug', 0),
         'game':      game,
-        'players':   game.players.all().annotate(has_acted=Count('actions_by', filter=Q(actions_by__round=round))),
+        'players':   players,
         'base_url':  settings.BASE_URL,
         'my_player': my_player,
         'my_action': Action.objects.filter(round=round, done_by=my_player).first(),
         'round':     round,
-        'votes':     Action.objects.filter(round=round-1, done_by__game=game).order_by('done_to'),
+        'votes':     Action.objects.filter(round=round-1, done_by__game=game) \
+                                   .filter(Q(done_by__died_in_round__gte=round)| Q(done_by__died_in_round__isnull=True)) \
+                                   .order_by('done_to'),
         'deaths':    game.players.filter(died_in_round=round-1),
         'suspect':   suspect,
         'MAFIA_ID':  MAFIA_ID,
-        'mafia_win': did_mafia_win(game),
+        'mafia_win': mafia_win,
     }
     return render(request, 'matthews/game.html', context)
 
