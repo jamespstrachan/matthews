@@ -38,13 +38,13 @@
     <h2>In conclusion</h2>
     <p>
     {% if endgame_type == 'bad' %}
-      With {{deaths.0}}'s last breath they gasped "you'll never divide us" - little
+      With <b>{{deaths.0}}</b>'s last breath they gasped "you'll never divide us" - little
       did they know it was already too late...
     {% elif endgame_type == 'truce' %}
       What had they become? <b>{{game.list_good_guys.0}}</b> and <b>{{game.list_bad_guys.0}}</b>'s eyes met across the road.
       All they had now was each other. {{game.list_bad_guys.0}} winked - {{game.list_good_guys.0}} smiled...
     {% elif endgame_type == 'good' %}
-      With {{deaths.0}}'s demise the dark cloud lifted from the people. The rot had been stopped and
+      With <b>{{deaths.0}}</b> gone for good the dark cloud lifted from the people. The rot had been stopped and
       the survivors lived in peace and harmony. For now...
     {% endif %}
     </p>
@@ -119,7 +119,7 @@
       </p>
       {% for dead in deaths %}
       <p>
-        The people have spoken and decided to put {{dead}} to death by hanging.
+        The people have spoken and decided to put <b>{{dead}}</b> to death by hanging.
       </p>
       {% empty %}
       <p>
@@ -253,6 +253,16 @@
 
 
 {% if not game.date_started %}
+  <h2>Rules</h2>
+  <ul>
+    <li>A consensus vote by the living good guys will succeed in lynching anyone</li>
+    <li>Otherwise, lynch voting is by clear majority (including votes for nobody)</li>
+    <li>Assassinations are chosen at random from the night's assassination targets.</li>
+    <li><b>Except</b> for game-winning assassination, which require consensus between the bad guys</li>
+    <li>Asassination attempts are prevented if the doctor chooses the victim on the same night</li>
+    <li>Good guys win once there are no bad guys left alive</li>
+    <li>Bad guys win once they are the majority</li>
+  </ul>
   {% if my_player.id == players.0.id  %}
     <h2>Invite more players</h2>
     <form action="{% url 'matthews:invite' game.id %}" method="POST">

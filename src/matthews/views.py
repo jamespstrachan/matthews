@@ -138,16 +138,22 @@ def start(request):
     if game.players.all().order_by('id').first().id != request.session['player_id']:
         raise Exception('Only the first player in the game can start it')
 
-    num_players = 1 + game.players.count()
-    num_bad = 1 + floor(0.19 * num_players) #todo: add random dither
+    rng = random.Random()
+    num_players = game.players.count()
 
-    special_character_ids = [DOCTOR_ID, DETECTIVE_ID] + ([MAFIA_ID] * num_bad)
-    all_character_ids = special_character_ids + ([CIVILIAN_ID] * (num_players - len(special_character_ids)))
+    def probabilistic_round(float):
+        """ rounds a value up or down based on its decimal part, eg 2.9 -> 3 90% of the time """
+        return int(float) + int(rng.random() < float % 1)
 
-    random.shuffle(all_character_ids)
+    character_ids  = [MAFIA_ID]     * (0 + probabilistic_round(num_players / 4.0))
+    character_ids += [DOCTOR_ID]    * 1 #(1 + probabilistic_round(num_players / 20.0))
+    character_ids += [DETECTIVE_ID] * 1 #(1 + probabilistic_round(num_players / 20.0))
+    character_ids += [CIVILIAN_ID]  * (num_players - len(character_ids))
+
+    random.Random().shuffle(character_ids)
 
     for player in game.players.all():
-        player.character_id = all_character_ids.pop()
+        player.character_id = character_ids.pop()
         player.save()
 
     game.date_started = datetime.now()
@@ -283,7 +289,7 @@ def game(request):
         'haunting_action': get_haunting_action(my_player, round),
         'game_state':   build_game_state(game),
         'votes':        Action.objects.filter(round=round-1, done_by__game=game) \
-                                      .filter(Q(done_by__died_in_round__gte=round) | Q(done_by__died_in_round__isnull=True)) \
+                                      .filter(Q(done_by__died_in_round_gte=round-1) | Q(done_by__died_in_round__isnull=True)) \
                                       .order_by('done_to'),
         'deaths':       deaths,
         'death_report': make_death_report(deaths[0].name) if deaths else '',
@@ -387,10 +393,13 @@ def who_died(game, round):
         nominees = game.players.filter(actions_to__round=round,
                                        actions_to__done_by__died_in_round__isnull=True) \
                                .annotate(votes=Count('actions_to')) \
+                               .annotate(good_votes=Count('actions_to', filter=~Q(actions_to__done_by__character_id=MAFIA_ID))) \
                                .order_by('-votes')
         nominee = nominees.first()
         num_alive_players = game.players.exclude(died_in_round__isnull=False).count()
-        if nominee and nominee.votes > num_alive_players / 2: # Simple majority
+        if nominee and ( nominee.votes > num_alive_players / 2                  # Simple majority
+                         or nominee.good_votes == game.list_good_guys().count() # Good-guy consensus
+                        ):
             return [nominee]
 
     else: # process night actions
@@ -399,14 +408,22 @@ def who_died(game, round):
                                       actions_to__done_by__character_id=MAFIA_ID) \
                            .annotate(votes=Count('actions_to')) \
                            .order_by('-votes')
-        target = targets.first()
+
+        if not targets.count():
+            return[]
+        target = random.Random().choice(list(targets))
 
         doctor_save_action = Action.objects.filter(done_by__game=game,
                                                    round=round, done_to=target,
                                                    done_by__character_id=DOCTOR_ID,
                                                    done_by__died_in_round__isnull=True).first()
 
-        # todo - decide if mafia need majority
+        num_bad_guys  = game.list_bad_guys().count()
+        num_good_guys = game.list_good_guys().count()
+        if num_bad_guys == num_good_guys and target.votes < num_bad_guys:
+            # reject a game-winning assassination if it's not done with consensus
+            return []
+
         if target and not doctor_save_action:
             return [target]
     return []
