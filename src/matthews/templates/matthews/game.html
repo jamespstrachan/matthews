@@ -266,15 +266,10 @@
     <h2>Invite more players</h2>
     <form action="{% url 'matthews:invite' game.id %}" method="POST">
     {% csrf_token %}
-      <textarea name="name_and_email" class="w-100 h-5" rows=8 placeholder="add like: Steve, stevie@gmail.com  (separated by new line)"></textarea>
+      <textarea name="name_and_email" class="w-100 h-5" rows=4 placeholder="add like: Steve, stevie@gmail.com  (separated by new line)"></textarea>
       <p>(we don't store the email address, we send a single invite email)</p>
       <input type="submit" value="Invite to game" class="btn btn-primary">
-    </form>
-
-    <h2>or</h2>
-    <form action="{% url 'matthews:start' %}" method="POST" onclick="confirm('Have all invited players joined and you are ready to start?')">
-      {% csrf_token %}
-      <input type="submit" value="Start game" class="btn btn-primary">
+      <a class="btn btn-primary float-right" href="{% url 'matthews:start' %}">Start game</a>
     </form>
   {% else %}
     <h2>Waiting for all invited players to join</h2>
@@ -292,6 +287,15 @@
     <a class="btn btn-danger float-right" href="{% url 'matthews:cast-all' %}">Cast all remaining votes</a>
   </p>
   {% endif %}
+{% endif %}
+
+{% if my_player.id == players.0.id  %}
+<div class="secret-link input-group mt-5">
+  <div class="input-group-prepend">
+    <div class="input-group-text">Your secret link to this game</div>
+  </div>
+  <input class="link_box form-control" value="{{invite_url}}" onclick="this.select()">
+</div>
 {% endif %}
 
 <style>
@@ -406,6 +410,8 @@ label:nth-child(27) .portrait { background-position: bottom right; }
 .game_over .player_results {
   display: inline-block;
 }
+
+.secret-link {position: absolute; top: 100%; left: 0;}
 
 
 

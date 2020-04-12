@@ -33,13 +33,17 @@ def new_game(request):
     game = Game()
     game.save()
     name = request.GET['leader']
-    messages.add_message(request, messages.INFO, 'New game created')
     return join(request, game.id, name, True)
 
 
-def make_invite_hash(id, name):
-    cleartext = str(id) + 'invite_hash' + name + settings.SECRET_KEY
+def make_invite_hash(game_id, name):
+    cleartext = str(game_id) + 'invite_hash' + name + settings.SECRET_KEY
     return hashlib.md5(cleartext.encode('utf-8')).hexdigest()
+
+
+def make_invite_url(game_id, name):
+    kwargs = {'id': game_id, 'name': name, 'hash': make_invite_hash(game_id, name)}
+    return settings.BASE_URL + reverse('matthews:join', kwargs=kwargs)
 
 
 def invite(request, id):
@@ -56,11 +60,9 @@ def invite(request, id):
             raise Exception("This game has already started, blame {}".format(game.players.first().name))
 
         for name, email in (x.split(',') for x in player_list.split('\n')):
-            name   = name.strip()
-            email  = email.strip()
-
-            kwargs = {'id': id, 'name': name, 'hash': make_invite_hash(game.id, name)}
-            url    = settings.BASE_URL + reverse('matthews:join', kwargs=kwargs)
+            name  = name.strip()
+            email = email.strip()
+            url   = make_invite_url(id, name)
             msg = "Join game {}".format(url)
             if '@' in email:
                 send_email([email], 'Join Matthews Game', html_content=msg, text_content=msg)
@@ -129,7 +131,6 @@ def start(request):
     game.date_started = datetime.now()
     game.save()
 
-    messages.add_message(request, messages.INFO, 'Game started, tell other players to refresh their screens')
     return HttpResponseRedirect(reverse('matthews:game'))
 
 
@@ -246,22 +247,22 @@ def game(request):
     random.seed(game.id+round)
 
     context = {
-        'debug':     request.session.get('debug', 0),
-        'base_url':  settings.BASE_URL,
-        'game':      game,
-        'round':     round,
-        'players':   players,
-        'my_player': my_player,
-        'my_action': Action.objects.filter(round=round, done_by=my_player).first(),
+        'debug':        request.session.get('debug', 0),
+        'invite_url':   make_invite_url(game.id, my_player.name),
+        'game':         game,
+        'round':        round,
+        'players':      players,
+        'my_player':    my_player,
+        'my_action':    Action.objects.filter(round=round, done_by=my_player).first(),
         'newest_action_id': newest_action_id,
-        'votes':     Action.objects.filter(round=round-1, done_by__game=game) \
-                                   .filter(Q(done_by__died_in_round__gte=round) | Q(done_by__died_in_round__isnull=True)) \
-                                   .order_by('done_to'),
-        'deaths':    deaths,
+        'votes':        Action.objects.filter(round=round-1, done_by__game=game) \
+                                      .filter(Q(done_by__died_in_round__gte=round) | Q(done_by__died_in_round__isnull=True)) \
+                                      .order_by('done_to'),
+        'deaths':       deaths,
         'death_report': make_death_report(deaths[0].name) if deaths else '',
-        'suspect':   suspect,
-        'MAFIA_ID':  MAFIA_ID,
-        'mafia_win': mafia_win,
+        'suspect':      suspect,
+        'MAFIA_ID':     MAFIA_ID,
+        'mafia_win':    mafia_win,
     }
     return render(request, 'matthews/game.html', context)
 
