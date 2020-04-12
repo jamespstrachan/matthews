@@ -289,7 +289,7 @@ def game(request):
         'haunting_action': get_haunting_action(my_player, round),
         'game_state':   build_game_state(game),
         'votes':        Action.objects.filter(round=round-1, done_by__game=game) \
-                                      .filter(Q(done_by__died_in_round_gte=round-1) | Q(done_by__died_in_round__isnull=True)) \
+                                      .filter(Q(done_by__died_in_round__gte=round-1) | Q(done_by__died_in_round__isnull=True)) \
                                       .order_by('done_to'),
         'deaths':       deaths,
         'death_report': make_death_report(deaths[0].name) if deaths else '',
