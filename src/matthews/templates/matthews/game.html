@@ -15,7 +15,7 @@
   <input id="update_opener" type="checkbox" class="d-none" {{my_action|yesno:',checked'}}>
   <label class="update_panel" for="update_opener">
   {% if round == 0 %}
-    <h2>All was not well in the community</h2>
+    <h2>Introduction</h2>
     <p>The cracks were showing. The social fabric frayed. People did not know who to trust</p>
     <p>
       After weeks of tension, today trouble errupts. You hear a loud argument in the street - you
@@ -28,9 +28,9 @@
       It starts today.
     </p>
     <br><br>
-    <span class="btn btn-primary float-right">Choose the player you'd like to lynch, or push for peace</a>
+    <span class="btn btn-primary float-right">Choose the player you'd like to lynch, or vote for nobody to be killed</a>
   {% elif mafia_win is not None %}
-    <h2>In conclusion...</h2>
+    <h2>In conclusion</h2>
     <p>
     {% if mafia_win %}
       With {{deaths.0}}'s last breath they gasped "you'll never divide us" - little
@@ -45,7 +45,7 @@
     <span class="btn btn-primary float-right">Review the game summary</a>
 
   {% else %}
-    <h2>{{round|divisibleby:'2'|yesno:"Last night,Earlier today"}}...</h2>
+    <h2>Morning update</h2>
     {% if round|divisibleby:'2' %}  {####################################### WAKEY WAKEY IT'S MORNING #}
       {% for dead in deaths %}
       {% if my_player.id == dead.id %}
@@ -79,10 +79,11 @@
         {% if my_player.died_in_round <= round %}
           Haunt the living souls that put you in the ground <i>(does nothing!)</i>
         {% else %}
-          Choose the player you'd like to lynch, or push for peace
+          Choose the player you'd like to lynch, or vote for nobody to be killed
         {% endif %}
       </a>
     {% else %}                  {####################################### SLEEPY SLEEPY IT'S EVENING #}
+    <h2>Evening update</h2>
       {% if my_player.id == dead.id %}
       {# todo - de-dupe this with same for night time killing #}
       <p>
@@ -129,7 +130,7 @@
 {% csrf_token %}
   {% for player in players %}
     <input type="radio" name="target" id="player_{{player.id}}" value="{{player.id}}" {%if my_action or mafia_win is not None or not game.date_started%}disabled {%if my_action.done_to == player %}checked {%endif%}{%endif%}>
-    <label class="{% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
+    <label class="avatar {% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
                   {{player.died_in_round|yesno:'mark_dead,mark_dead,'}}
                   "
            for="player_{{player.id}}">
@@ -201,9 +202,10 @@
     {% endif %}
     </div>
   {% endfor %}
+
   {% if game.date_started %}
     <input type="radio" name="target" id="player_0" value="0" {%if my_action or mafia_win is not None or not game.date_started %}disabled {%if my_action and my_action.done_to is None %}checked {%endif%}{%endif%}>
-    <label for="player_0">
+    <label class="avatar" for="player_0">
       {% if not my_action %}
       {% endif %}
       <h2>Nobody</h2>
@@ -225,38 +227,7 @@
   {% endif %}
 <br>
 {% if my_action %}
-   Waiting for other players
-   <div class="loader"></div>
-   <a id="check_for_new_action" class="btn btn-light ml-3" href="{% url 'matthews:game' %}">check now</a>
-  <script>
-    newest_action_id = {{newest_action_id}};
-    check_seconds = 3;
-    check_reps    = 60;
-    var $manual_check;
-    $(function(){
-      $manual_check = $('#check_for_new_action');
-      $manual_check.hide();
-    });
-    function check_for_new_action(){
-      $.ajax({
-        url: '?any_actions_since='+newest_action_id,
-        method: 'GET',
-      }).done(function(data){
-        if(parseInt(data)){
-          window.location = window.location;
-        }
-      })
-      check_reps -= 1;
-      if( check_reps ){
-        window.setTimeout(check_for_new_action, check_seconds*1000);
-      }else{
-        $manual_check.show();
-        $('.loader').hide();
-      }
-    }
-    window.setTimeout(check_for_new_action, check_seconds*1000);
-
-  </script>
+  {% include 'matthews/_waiting_ajax.html' %}
 {% endif %}
 </form>
 
@@ -274,6 +245,7 @@
   {% else %}
     <h2>Waiting for all invited players to join</h2>
     {{players.0.name}} is in charge of starting game, bug them if you think we should just crack on with it
+    {% include 'matthews/_waiting_ajax.html' %}
   {% endif %}
 {% else %}
   {% if my_player.id == players.0.id  %}
@@ -302,22 +274,23 @@
 .update_panel {
   z-index: 3;
   position: absolute;
-  width: 17em;
-  height: 3em;
+  width: 19em;
+  height: 2.5em;
   border-radius: 0.2em;
   top: -1em;
-  right: -2em;
+  right: 0.1em;
   overflow: hidden;
   background-color: #fec;
   box-shadow: 3px 3px 6px rgba(0,0,0,0.3);
-  transform: rotate(10deg);
+  transform: rotate(3deg);
   transition: 0.1s;
   padding-left: 2em;
+  cursor: pointer;
 }
 [type=checkbox]:checked + .update_panel{
   display: block;
-  top: 2em;
-  right: 2em;
+  top: 1em;
+  right: 1em;
   width: 85%;
   padding: 2em;
   margin: 5%;
@@ -325,6 +298,7 @@
   min-height: 20em;
   transform: rotate(-1deg);
 }
+.update_panel > h2 { margin-bottom: 0.2em;}
 .secret_note {
   font-family: cursive;
 }
@@ -340,12 +314,12 @@
   bottom: 0;
   display: none;
 }
-label:hover .play_as { display: block; }
+.avatar:hover .play_as { display: block; }
 
 .vote-form {text-align:center;}
 
 [type=radio] {display:none;}
-label {
+.avatar {
   display:inline-block;
   height: 172px;
   margin: 1em 1em 4em;
@@ -355,20 +329,20 @@ label {
   transition: 0.1s;
   background-color: #f2e9e4;
 }
-label > h2{
+.avatar > h2{
   overflow: hidden;
   padding: 0.1em;
   margin-bottom: 0em;
 }
 
-[type=radio]:disabled + label { cursor: default; }
-[type=radio]:checked + label
+[type=radio]:disabled + .avatar { cursor: default; }
+[type=radio]:checked + .avatar
 {
   transform: scale(1.1);
   box-shadow: 2px 3px 4px rgba(0,0,0,0.2);
   background-color: #007bff;
 }
-[type=radio]:checked + label h2 { color: white; }
+[type=radio]:checked + .avatar h2 { color: white; }
 
 .portrait {
   width: 115px;
@@ -378,15 +352,15 @@ label > h2{
   margin: 0em auto 0.5em;
 
 }
-label:nth-child(3) .portrait { background-position: top left; }
-label:nth-child(6) .portrait { background-position: top center; }
-label:nth-child(9) .portrait { background-position: top right; }
-label:nth-child(12) .portrait { background-position: center left; }
-label:nth-child(15) .portrait { background-position: center center; }
-label:nth-child(18) .portrait { background-position: center right; }
-label:nth-child(21) .portrait { background-position: bottom left; }
-label:nth-child(24) .portrait { background-position: bottom center; }
-label:nth-child(27) .portrait { background-position: bottom right; }
+.avatar:nth-child(3) .portrait { background-position: top left; }
+.avatar:nth-child(6) .portrait { background-position: top center; }
+.avatar:nth-child(9) .portrait { background-position: top right; }
+.avatar:nth-child(12) .portrait { background-position: center left; }
+.avatar:nth-child(15) .portrait { background-position: center center; }
+.avatar:nth-child(18) .portrait { background-position: center right; }
+.avatar:nth-child(21) .portrait { background-position: bottom left; }
+.avatar:nth-child(24) .portrait { background-position: bottom center; }
+.avatar:nth-child(27) .portrait { background-position: bottom right; }
 [for=player_0] .portrait { background-image: none; background-color: #f2e9e4;}
 
 .vote-form [type=submit] {
@@ -397,7 +371,7 @@ label:nth-child(27) .portrait { background-position: bottom right; }
   display: none;
   z-index: 2;
 }
-.vote-form [type=radio]:checked + label [type=submit] {display: block;}
+.vote-form [type=radio]:checked + .avatar [type=submit] {display: block;}
 
 .player_results {
   width: 65%;
@@ -411,6 +385,17 @@ label:nth-child(27) .portrait { background-position: bottom right; }
   display: inline-block;
 }
 
+.waiting {
+  position: fixed;
+  text-align: center;
+  bottom: 0;
+  left:0;
+  right:0;
+  padding: 0.5em;
+  background-color: #cef;
+  z-index: 5;
+}
+.waiting > * { vertical-align: baseline; }
 .secret-link {position: absolute; top: 100%; left: 0;}
 
 
@@ -422,59 +407,35 @@ label:nth-child(27) .portrait { background-position: bottom right; }
   border-radius: 50%;
 }
 .loader {
-  margin: -3em 0;
   vertical-align: middle;
   display: inline-block;
-  color: #c0c0c0;
-  box-shadow: inset 0 0 0 1em #c0c0c0;
-  font-size: 12px;
-  text-indent: -99999em;
+  color: #cef;
   position: relative;
-  width: 10em;
-  height: 10em;
-  box-shadow: inset 0 0 0 1em;
-  -webkit-transform: translateZ(0) scale(0.25);
-  -ms-transform: translateZ(0) scale(0.25);
-  transform: translateZ(0) scale(0.25);
+  width: 1em;
+  height: 1em;
+  border: 0.25em solid #007bff;
+  transform: translateZ(0) scale(1);
 }
 .loader:before,
 .loader:after {
   position: absolute;
   content: '';
+  width: 0.6em;
+  height: 1.2em;
+  background: #cef;
+  top: -0.35em;
 }
 .loader:before {
-  width: 5.2em;
-  height: 10.2em;
-  background: white;
-  border-radius: 10.2em 0 0 10.2em;
-  top: -0.1em;
-  left: -0.1em;
-  -webkit-transform-origin: 5.1em 5.1em;
-  transform-origin: 5.1em 5.1em;
-  -webkit-animation: load2 2s infinite ease 1.5s;
+  left: -.35em;
+  border-radius: 0.6em 0 0 0.6em;
   animation: load2 2s infinite ease 1.5s;
+  transform-origin: 0.6em 0.6em;
 }
 .loader:after {
-  width: 5.2em;
-  height: 10.2em;
-  background: white;
-  border-radius: 0 10.2em 10.2em 0;
-  top: -0.1em;
-  left: 4.9em;
-  -webkit-transform-origin: 0.1em 5.1em;
-  transform-origin: 0.1em 5.1em;
-  -webkit-animation: load2 2s infinite ease;
+  left: 0.25em;
+  border-radius: 0 1em 1em 0;
   animation: load2 2s infinite ease;
-}
-@-webkit-keyframes load2 {
-  0% {
-    -webkit-transform: rotate(0deg);
-    transform: rotate(0deg);
-  }
-  100% {
-    -webkit-transform: rotate(360deg);
-    transform: rotate(360deg);
-  }
+  transform-origin: 0em 0.6em;
 }
 @keyframes load2 {
   0% {

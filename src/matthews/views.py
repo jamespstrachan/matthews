@@ -134,6 +134,17 @@ def start(request):
     return HttpResponseRedirect(reverse('matthews:game'))
 
 
+def build_game_state(game):
+    """ returns a string representing the state of the game """
+    newest_action = Action.objects.filter(done_by__game=game).order_by('-id').first()
+    return '{}-{}-{}'.format(game.players.count(), game.date_started, newest_action)
+
+
+def state(request):
+    game = Game.objects.get(id=request.session.get('game_id'))
+    return HttpResponse(build_game_state(game))
+
+
 def game(request):
     play_as_id = request.GET.get('play_as_id')
     if play_as_id:
@@ -151,13 +162,6 @@ def game(request):
         messages.add_message(request, messages.INFO, "You're not currently in any game, follow the link in the invite email to join one")
         return HttpResponseRedirect(reverse('matthews:home'))
     game = Game.objects.get(id=game_id)
-
-    newest_action = Action.objects.filter(done_by__game=game).order_by('-id').first()
-    newest_action_id = newest_action.id if newest_action else 0
-    if request.GET.get('any_actions_since'):
-        new_actions = newest_action_id > int(request.GET.get('any_actions_since'))
-        return HttpResponse(newest_action_id if new_actions else 0);
-
     round = calculate_round(game)
     my_player = Player.objects.filter(id=request.session.get('player_id')).first()
 
@@ -254,7 +258,7 @@ def game(request):
         'players':      players,
         'my_player':    my_player,
         'my_action':    Action.objects.filter(round=round, done_by=my_player).first(),
-        'newest_action_id': newest_action_id,
+        'game_state':   build_game_state(game),
         'votes':        Action.objects.filter(round=round-1, done_by__game=game) \
                                       .filter(Q(done_by__died_in_round__gte=round) | Q(done_by__died_in_round__isnull=True)) \
                                       .order_by('done_to'),
