@@ -35,8 +35,17 @@
     <br><br>
     <span class="btn btn-primary float-right">Choose the player you'd like to lynch, or vote for nobody to be killed</a>
   {% elif endgame_type %}
-    <h2>In conclusion</h2>
+    <h2>
+      {% if endgame_type == 'bad' %}
+        The bad guys win
+      {% elif endgame_type == 'truce' %}
+        It's a draw
+      {% elif endgame_type == 'good' %}
+        The good guys win
+      {% endif %}
+    </h2>
     <p>
+      <br>
     {% if endgame_type == 'bad' %}
       With <b>{{deaths.0}}</b>'s last breath they gasped "you'll never divide us" - little
       did they know it was already too late...
