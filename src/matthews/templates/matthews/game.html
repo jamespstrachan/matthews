@@ -57,7 +57,7 @@
     <h2>Morning update</h2>
       {% for dead in deaths %}
       {% if my_player.id == dead.id %}
-      <p>
+      <p class="dead-instructions">
         You died a painful death!
         <i>
           You may not communicate with other players until the end of the game.
@@ -100,14 +100,14 @@
       </a>
     {% else %}                  {####################################### SLEEPY SLEEPY IT'S EVENING #}
     <h2>Evening update</h2>
-      {% if my_player.id == dead.id %}
+      {% if my_player.id == deaths.0.id %}
       {# todo - de-dupe this with same for night time killing #}
-      <p>
+      <p class="dead-instructions">
         You were found guilty and excuted to death!
         <i>
           You cannot speak to other players until the end of the game.
           You may make ghostly noises at purely random times.
-          Each night you will get the chance to haunt the dreams of those who wronged you
+          By day and night you will get the chance to haunt those who wronged you
           and the community that couldn't keep you safe.
         </i>
       </p>
@@ -348,6 +348,11 @@
   transform: rotate(5deg);
   font-family: 'Homemade Apple', cursive;
 }
+.dead-instructions {
+  background-color: #fce;
+  padding: 2em;
+}
+
 
 .mark_dead { filter: grayscale(1); opacity: 0.5;}
 .win_text{
