@@ -1,6 +1,10 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+MAFIA_ID     = 1
+CIVILIAN_ID  = 2
+DOCTOR_ID    = 3
+DETECTIVE_ID = 4
 
 class User(AbstractUser):
 
@@ -10,6 +14,14 @@ class User(AbstractUser):
 
 class Game(models.Model):
     date_started = models.DateTimeField(null=True, blank=True)
+
+    def list_good_guys(self):
+        return self.players.filter(died_in_round__isnull=True) \
+                           .exclude(character__id=MAFIA_ID)
+
+    def list_bad_guys(self):
+        return self.players.filter(died_in_round__isnull=True) \
+                           .filter(character__id=MAFIA_ID)
 
     def __str__(self):
         return 'Game {}'.format(self.id)

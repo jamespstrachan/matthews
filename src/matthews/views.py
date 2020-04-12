@@ -16,13 +16,8 @@ from django.db.models.functions import Cast, Coalesce
 from django_tables2 import RequestConfig
 
 from project.emails import send_email
-from .models import Game, Player, Action
+from .models import *
 
-
-MAFIA_ID     = 1
-CIVILIAN_ID  = 2
-DOCTOR_ID    = 3
-DETECTIVE_ID = 4
 
 def home(request):
     context = {}
@@ -199,8 +194,8 @@ def game(request):
 
     players = game.players.all()
 
-    mafia_win = did_mafia_win(game)
-    if mafia_win is not None:
+    endgame_type = get_endgame_type(game)
+    if endgame_type is not None:
         bad_guy_ids = [MAFIA_ID]
         good_guy_ids = [CIVILIAN_ID, DOCTOR_ID, DETECTIVE_ID]
         day_regex   = '^\d*[02468]$'
@@ -294,7 +289,7 @@ def game(request):
         'death_report': make_death_report(deaths[0].name) if deaths else '',
         'suspect':      suspect,
         'MAFIA_ID':     MAFIA_ID,
-        'mafia_win':    mafia_win,
+        'endgame_type': endgame_type,
     }
     return render(request, 'matthews/game.html', context)
 
@@ -302,7 +297,8 @@ def game(request):
 def get_haunting_action(player, round):
     actions = Action.objects.filter(round=round-1, done_to=player, done_by__died_in_round__isnull=False)
     if len(actions):
-        return random.choice(list(actions))
+        return random.Random().choice(list(actions))
+
 
 def make_death_report(name):
     templates = [
@@ -416,20 +412,22 @@ def who_died(game, round):
     return []
 
 
-def did_mafia_win(game):
-    """ returns True if so; False if Civilians win; None if game is undecided
-    """
+def get_endgame_type(game):
+    """ returns 'bad' if bad guys win, 'good' if good guys win else None """
     if not game.date_started:
         return None
 
     players = game.players.filter(died_in_round__isnull=True)
     num_players = players.count()
-    num_bad = players.filter(character__id=MAFIA_ID).count()
+    num_bad  = game.list_bad_guys().count()
+    num_good = game.list_good_guys().count()
 
     if num_bad == 0:
-        return False
-    if num_bad >= num_players / 2:
-        return True
+        return 'good'
+    if num_bad > num_good:
+        return 'bad'
+    if num_bad == 1 and num_good == 1:
+        return 'truce'
     return None
 
 
