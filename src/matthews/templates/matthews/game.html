@@ -217,7 +217,7 @@
         {% elif player.character_id == 2 %}
           Suspicions were accurate {{player.suspected_bad_pc|floatformat:0}}% of the time<br>
         {% elif player.character_id == 3 %}
-          Saved {{player.lives_saved}} live{{player.lives_saved|pluralize}}<br>
+          Saved {{player.lives_saved}} {{player.lives_saved|pluralize:'life,lives'}}<br>
         {% elif player.character_id == 4 %}
           Mafia discovered: {{player.mafia_found}}<br>
         {% endif %}
