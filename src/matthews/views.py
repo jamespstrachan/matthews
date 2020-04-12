@@ -285,6 +285,7 @@ def game(request):
         'players':      players,
         'my_player':    my_player,
         'my_action':    Action.objects.filter(round=round, done_by=my_player).first(),
+        'haunting_action': get_haunting_action(my_player, round),
         'game_state':   build_game_state(game),
         'votes':        Action.objects.filter(round=round-1, done_by__game=game) \
                                       .filter(Q(done_by__died_in_round__gte=round) | Q(done_by__died_in_round__isnull=True)) \
@@ -297,6 +298,11 @@ def game(request):
     }
     return render(request, 'matthews/game.html', context)
 
+
+def get_haunting_action(player, round):
+    actions = Action.objects.filter(round=round-1, done_to=player, done_by__died_in_round__isnull=False)
+    if len(actions):
+        return random.choice(list(actions))
 
 def make_death_report(name):
     templates = [

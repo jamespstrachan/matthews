@@ -27,6 +27,11 @@
     <p>
       It starts today.
     </p>
+    <p class="secret_note">
+      text like this is a <b>secret note</b>.<br>
+      if you hear anyone talking about "<b>pineapples</b>" you'll
+      know they have misunderstood...
+    </p>
     <br><br>
     <span class="btn btn-primary float-right">Choose the player you'd like to lynch, or vote for nobody to be killed</a>
   {% elif mafia_win is not None %}
@@ -45,8 +50,8 @@
     <span class="btn btn-primary float-right">Review the game summary</a>
 
   {% else %}
-    <h2>Morning update</h2>
     {% if round|divisibleby:'2' %}  {####################################### WAKEY WAKEY IT'S MORNING #}
+    <h2>Morning update</h2>
       {% for dead in deaths %}
       {% if my_player.id == dead.id %}
       <p>
@@ -70,7 +75,11 @@
 
       {% if suspect %}
       <p class="secret_note">
-        Psst... {{suspect}} is {% if suspect.character_id == MAFIA_ID %}in the mafia{% else %}one of the good guys{% endif %} - ❤ your favourite snitch x
+        info: <b>{{suspect}}</b> is {% if suspect.character_id == MAFIA_ID %}in the mafia{% else %}one of the good guys{% endif %}
+      </p>
+      {% elif haunting_action %}
+      <p class="secret_note">
+        you heard <b>{{haunting_action.done_by}}</b>'s  voice in the morning breeze - could it be..?
       </p>
       {% endif %}
 
@@ -114,6 +123,12 @@
         We thought better of our lynching instincts and everyone made it to bed safely.
       </p>
       {% endfor %}
+
+      {% if haunting_action %}
+      <p class="secret_note">
+        you saw a picture of <b>{{haunting_action.done_by}}</b> and it brought a tear to your eye
+      </p>
+      {% endif %}
 
       <br><br>
       <span class="btn btn-primary float-right">Without conferring, choose who you {% include 'matthews/_action_name.html' with player=my_player %}</a>
@@ -311,7 +326,11 @@
 }
 .update_panel > h2 { margin-bottom: 0.2em;}
 .secret_note {
-  font-family: cursive;
+  color: #224c98;
+  font-size: 200%;
+  text-align: center;
+  transform: rotate(5deg);
+  font-family: 'Homemade Apple', cursive;
 }
 
 .mark_dead { filter: grayscale(1); opacity: 0.5;}
