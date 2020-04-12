@@ -250,17 +250,26 @@
     {% include 'matthews/_waiting_ajax.html' %}
   {% endif %}
 {% else %}
-  {% if my_player.id == players.0.id  %}
-  <a class="btn btn-danger float-right" href="{% url 'matthews:restart'%}"
-     onclick="return confirm('Are you sure? This will return all players to the setup stage and delete their characters and moves from this game.');"
-     >Restart whole game</a>
-  {% endif %}
-
-  {% if debug %}
   <p class="mt-5">
-    <a class="btn btn-danger float-right" href="{% url 'matthews:cast-all' %}">Cast all remaining votes</a>
+    Admin:
+    {% if my_player.id == players.0.id  %}
+      <a class="btn btn-light btn-sm mx-2 float-right" href="{% url 'matthews:restart_round' round %}"
+         onclick="return confirm('Are you sure? This will undo all actions since start of round {{round|add:1}}');"
+         >Restart this round</a>
+      {% if round > 0 %}
+        <a class="btn btn-light btn-sm mx-2 float-right" href="{% url 'matthews:restart_round' round|add:-1 %}"
+           onclick="return confirm('Are you sure? This will undo all actions since start of round {{round}}');"
+           >Restart previous round</a>
+      {% endif %}
+      <a class="btn btn-light btn-sm mx-2 float-right" href="{% url 'matthews:restart'%}"
+         onclick="return confirm('Are you sure? This will return all players to the setup stage and delete their characters and moves from this game.');"
+         >Restart whole game</a>
+    {% endif %}
+
+    {% if debug %}
+      <a class="btn btn-light btn-sm mx-2 float-right" href="{% url 'matthews:cast-all' %}">Cast all remaining votes</a>
+    {% endif %}
   </p>
-  {% endif %}
 {% endif %}
 
 {% if my_player.id == players.0.id  %}
