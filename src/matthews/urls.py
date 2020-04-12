@@ -9,6 +9,7 @@ urlpatterns = [
     path('game/<int:id>/join/<slug:name>/<slug:hash>', views.join, name='join'),
     path('game', views.game, name='game'),
     path('game/state', views.state, name='state'),
+    path('game/remove-player/<int:id>', views.remove_player, name='remove_player'),
     path('game/start', views.start, name='start'),
     path('game/restart', views.restart, name='restart'),
     path('game/target', views.target, name='target'),

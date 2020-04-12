@@ -111,6 +111,21 @@ def restart(request):
     return HttpResponseRedirect(reverse('matthews:game'))
 
 
+def remove_player(request, id):
+    game = Game.objects.get(id=request.session['game_id'])
+    if game.players.all().order_by('id').first().id != request.session['player_id']:
+        raise Exception('Only the first player in the game can remove players')
+
+    if game.date_started:
+        raise Exception('Can\'t remove players from a game which has started')
+
+    player = Player.objects.get(id=id, game=game)
+    player.delete()
+
+    return HttpResponseRedirect(reverse('matthews:game'))
+
+
+
 def start(request):
     game = Game.objects.get(id=request.session['game_id'])
     if game.players.all().order_by('id').first().id != request.session['player_id']:

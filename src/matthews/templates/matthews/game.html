@@ -150,7 +150,9 @@
       <span>&nbsp;</span>
       {% endif %}
       <br>
-      {% if my_player.id == player.id and my_action %}
+      {% if my_player.id == players.0.id and not game.date_started %}
+      <a href="{% url 'matthews:remove_player' player.id %}" class="btn btn-danger btn-sm">remove</a>
+      {% elif my_player.id == player.id and my_action %}
       <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}Nobody {% endif %}</i>
       {% elif player.has_acted %}
       <i>has acted</i>
