@@ -1,3 +1,4 @@
+import json
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -5,6 +6,22 @@ MAFIA_ID     = 1
 CIVILIAN_ID  = 2
 DOCTOR_ID    = 3
 DETECTIVE_ID = 4
+
+ROLE_NAMES = {
+    MAFIA_ID:     'Mafia',
+    CIVILIAN_ID:  'Civilian',
+    DOCTOR_ID:    'Doctor',
+    DETECTIVE_ID: 'Detective',
+}
+
+class DictField(models.TextField):
+    """ serialises dicts for saving """
+    def from_db_value(self, value, *args):
+        return json.loads(value) if value else None
+
+    def get_db_prep_save(self, value, *args, **kwargs):
+        return json.dumps(value) if value else None
+
 
 class User(AbstractUser):
 
@@ -14,6 +31,7 @@ class User(AbstractUser):
 
 class Game(models.Model):
     date_started = models.DateTimeField(null=True, blank=True)
+    options      = DictField(blank=True, null=True)
 
     def list_good_guys(self):
         return self.players.filter(died_in_round__isnull=True) \

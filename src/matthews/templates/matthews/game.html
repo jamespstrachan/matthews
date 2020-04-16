@@ -181,7 +181,7 @@
       <span>&nbsp;</span>
       {% endif %}
       <br>
-      {% if my_player.id == players.0.id and not game.date_started %}
+      {% if my_player.is_leader and not game.date_started %}
       <a href="{% url 'matthews:remove_player' player.id %}" class="btn btn-danger btn-sm">remove</a>
       {% elif my_player.id == player.id and my_action %}
       <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}Nobody {% endif %}</i>
@@ -266,6 +266,85 @@
 
 
 {% if not game.date_started %}
+  <h2>Options</h2>
+  {% if not my_player.is_leader %}
+    <p class="my-2">{{players.0.name}} is in control of these options, ask them to make changes if you like</p>
+  {% endif %}
+  <form class="options-form form-inline" action="{% url 'matthews:update_options'%}" method="POST">
+  {% csrf_token %}
+  <table class="w-100">
+    <tr>
+      <th>Character</th>
+      <th>Frequency</th>
+      <th>Minimum</th>
+      <th>Odds (with <span class="num-players">current</span> players)</th>
+    </tr>
+  {% for character_id, opts in char_options.items %}
+    <tr>
+      <td>{{opts.name}}</td>
+      <td>
+        <input type="hidden" name="character_ids[]" value="{{character_id}}" {{my_player.is_leader|yesno:",disabled"}} >
+        <input type="range" name="pc_{{character_id}}" min="0" max="50" value="{{opts.pc}}" class="custom-range w-100 align-middle" {{my_player.is_leader|yesno:",disabled"}}>
+      </td>
+      <td>
+        <input class="form-control text-right" name="min_{{character_id}}" value="{{opts.min}}" style="width: 60px;" {{my_player.is_leader|yesno:",disabled"}}>
+      </td>
+      <td class="character-likelihood">
+      </td>
+    </tr>
+  {% endfor %}
+  </table>
+  {% if my_player.is_leader %}
+    <div class="mt-2 w-100 text-right">
+      <input class="btn btn-light" type="submit" name="reset" value="Reset to default">
+      <input class="btn btn-primary" type="submit" value="Save options">
+      <input class="btn btn-primary" type="submit" name="start" value="Start game">
+    </div>
+  {% endif %}
+  </form>
+
+  <br>
+
+  <style>
+  .options-form sub {color: #ccc}
+  {% if my_player.is_leader %}
+    .options-form td:nth-child(2) { width: 50%;}
+    .options-form td:nth-child(4) { width: 25%;}
+  {% else %}
+    .options-form th:nth-child(2),
+    .options-form th:nth-child(3),
+    .options-form td:nth-child(2),
+    .options-form td:nth-child(3) { display: none;}
+  {% endif %}
+  </style>
+  <script>
+    $(function(){
+      $('.options-form').on('input', 'input', function(){
+        num_players = $('.avatar').length;
+        $('.num-players').html(num_players)
+        $('.character-likelihood').each(function(){
+          pc_char  = parseInt($(this).parent('tr').find('[name^=pc_]').val());
+          min_char = parseInt($(this).parent('tr').find('[name^=min_]').val());
+          if(pc_char == 0){
+            min = min_char;
+            max = min_char;
+          }else{
+            num_char = num_players * pc_char / 100;
+            min      = Math.max(min_char, Math.floor(num_char));
+            max      = Math.max(min_char, Math.ceil(num_char));
+            pc_max   = parseInt((num_char % 1) * 100);
+            pc_min   = 100 - pc_max;
+          }
+          $(this).html(max==min ? `${min} <sub>100%</sub>`
+                                : `${min} <sub>${pc_min}%</sub> or ${max} <sub>${pc_max}%</sub>`);
+        })
+      });
+
+      $('.options-form input').trigger('input')
+    })
+  </script>
+
+
   <h2>Rules</h2>
   <ul>
     <li>A consensus vote by the living good guys will succeed in lynching anyone</li>
@@ -276,14 +355,16 @@
     <li>Good guys win once there are no bad guys left alive</li>
     <li>Bad guys win once they are the majority</li>
   </ul>
-  {% if my_player.id == players.0.id  %}
+
+  <br>
+
+  {% if my_player.is_leader  %}
     <h2>Invite more players</h2>
     <form action="{% url 'matthews:invite' game.id %}" method="POST">
     {% csrf_token %}
       <textarea name="name_and_email" class="w-100 h-5" rows=4 placeholder="add like: Steve, stevie@gmail.com  (separated by new line)"></textarea>
       <p>(we don't store the email address, we send a single invite email)</p>
       <input type="submit" value="Invite to game" class="btn btn-primary">
-      <a class="btn btn-primary float-right" href="{% url 'matthews:start' %}">Start game</a>
     </form>
   {% else %}
     <h2>Waiting for all invited players to join</h2>
@@ -292,7 +373,7 @@
   {% endif %}
 {% else %}
   <div class="btn-group mt-5">
-  {% if my_player.id == players.0.id  %}
+  {% if my_player.is_leader  %}
     <a class="btn btn-light btn-sm " href="{% url 'matthews:restart_round' round %}"
        onclick="return confirm('Are you sure? This will undo all actions since start of round {{round|add:1}}');"
        >Restart this round</a>
@@ -312,7 +393,7 @@
   </div>
 {% endif %}
 
-{% if my_player.id == players.0.id  %}
+{% if my_player.is_leader  %}
 <div class="secret-link input-group mt-5">
   <div class="input-group-prepend">
     <div class="input-group-text">Your secret link to this game</div>

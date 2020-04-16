@@ -3,6 +3,7 @@ from math import floor
 import random
 import hashlib
 import re
+import json
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
@@ -92,6 +93,35 @@ def join(request, id, name, hash):
     return HttpResponseRedirect(reverse('matthews:game'))
 
 
+
+def update_options(request):
+    game = Game.objects.get(id=request.session['game_id'])
+    if game.players.all().order_by('id').first().id != request.session['player_id']:
+        raise Exception('Only leader can update game options')
+
+    if game.date_started:
+        raise Exception('Can\'t update options for a game which has started')
+
+    if 'reset' in request.POST:
+        game.options = None
+        game.save()
+
+    else:
+        roles = {int(id): {'min': int(request.POST.get('min_'+id)),
+                           'pc': int(request.POST.get('pc_'+id))
+                      }
+                 for id in request.POST.getlist('character_ids[]')}
+        game.options = {
+            'roles': roles,
+        }
+        game.save()
+
+        if 'start' in request.POST:
+            return start(request)
+
+    return HttpResponseRedirect(reverse('matthews:game'))
+
+
 def remove_player(request, id):
     game = Game.objects.get(id=request.session['game_id'])
     if game.players.all().order_by('id').first().id != request.session['player_id']:
@@ -139,13 +169,15 @@ def start(request):
     rng = random.Random()
     num_players = game.players.count()
 
+
     def probabilistic_round(float):
         """ rounds a value up or down based on its decimal part, eg 2.9 -> 3 90% of the time """
         return int(float) + int(rng.random() < float % 1)
 
-    character_ids  = [MAFIA_ID]     * (0 + probabilistic_round(num_players / 4.0))
-    character_ids += [DOCTOR_ID]    * 1 #(1 + probabilistic_round(num_players / 20.0))
-    character_ids += [DETECTIVE_ID] * 1 #(1 + probabilistic_round(num_players / 20.0))
+    character_ids = []
+    for character_id, options in game.options.get('roles').items():
+        character_ids += [int(character_id)] * max(options['min'], probabilistic_round(num_players * options['pc'] / 100))
+
     character_ids += [CIVILIAN_ID]  * (num_players - len(character_ids))
 
     random.Random().shuffle(character_ids)
@@ -163,7 +195,10 @@ def start(request):
 def build_game_state(game):
     """ returns a string representing the state of the game """
     newest_action = Action.objects.filter(done_by__game=game).order_by('-id').first()
-    return '{}-{}-{}'.format(game.players.count(), game.date_started, newest_action)
+    if game.date_started:
+        return "{}-{}".format(game.date_started, newest_action)
+    else:
+        return "{}-{}".format(game.players.count(), hash(json.dumps(game.options)))
 
 
 def state(request):
@@ -191,12 +226,27 @@ def game(request):
     round = calculate_round(game)
     my_player = Player.objects.filter(id=request.session.get('player_id')).first()
 
+
+
     suspect = None
     if round % 2 == 0 and my_player.character_id == DETECTIVE_ID:
         investigation = Action.objects.filter(round=round-1, done_by=my_player).first()
         suspect = investigation.done_to if investigation else None
 
     players = game.players.all()
+
+    default_options = {
+        'roles': {
+            MAFIA_ID:     {'min': 1, 'pc': 25},
+            DOCTOR_ID:    {'min': 1, 'pc': 10},
+            DETECTIVE_ID: {'min': 1, 'pc': 10},
+        }
+    }
+
+    role_options = game.options.get('roles') if game.options else default_options.get('roles')
+    # add in names to the char options array (as it's annoying to look them up in the template)
+    char_options = {int(k): {**v, 'name': ROLE_NAMES[int(k)]}
+                    for k,v in role_options.items()}
 
     endgame_type = get_endgame_type(game)
     if endgame_type is not None:
@@ -276,24 +326,26 @@ def game(request):
     deaths = game.players.filter(died_in_round=round-1)
     random.seed(game.id+round)
 
+    my_player.is_leader = my_player.id == players[0].id
     context = {
-        'debug':        request.session.get('debug', 0),
-        'invite_url':   make_invite_url(game.id, my_player.name),
-        'game':         game,
-        'round':        round,
-        'players':      players,
-        'my_player':    my_player,
-        'my_action':    Action.objects.filter(round=round, done_by=my_player).first(),
-        'haunting_action': get_haunting_action(my_player, round),
-        'game_state':   build_game_state(game),
-        'votes':        Action.objects.filter(round=round-1, done_by__game=game) \
-                                      .filter(Q(done_by__died_in_round__gte=round-1) | Q(done_by__died_in_round__isnull=True)) \
-                                      .order_by('done_to'),
-        'deaths':       deaths,
-        'death_report': make_death_report(deaths[0].name) if deaths else '',
-        'suspect':      suspect,
-        'MAFIA_ID':     MAFIA_ID,
-        'endgame_type': endgame_type,
+        'debug':            request.session.get('debug', 0),
+        'invite_url':       make_invite_url(game.id, my_player.name),
+        'char_options':     char_options,
+        'game':             game,
+        'round':            round,
+        'players':          players,
+        'my_player':        my_player,
+        'my_action':        Action.objects.filter(round=round, done_by=my_player).first(),
+        'haunting_action':  get_haunting_action(my_player, round),
+        'game_state':       build_game_state(game),
+        'votes':            Action.objects.filter(round=round-1, done_by__game=game) \
+                                          .filter(Q(done_by__died_in_round__gte=round-1) | Q(done_by__died_in_round__isnull=True)) \
+                                          .order_by('done_to'),
+        'deaths':           deaths,
+        'death_report':     make_death_report(deaths[0].name) if deaths else '',
+        'suspect':          suspect,
+        'MAFIA_ID':         MAFIA_ID,
+        'endgame_type':     endgame_type,
     }
     return render(request, 'matthews/game.html', context)
 
