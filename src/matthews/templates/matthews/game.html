@@ -195,7 +195,7 @@
       {% elif my_player.id == player.id and my_action %}
       <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}Nobody {% endif %}</i>
       {% elif player.has_acted %}
-        {% if is_day and not game.options.hidden_lynching %}
+        {% if is_day and not gameplay_options.hidden_lynching %}
         <i>chose {% if player.action.done_to %}{{player.action.done_to.name}}{% else %}Nobody {% endif %}</i>
         {% else %}
         <i>has acted</i>
@@ -312,7 +312,7 @@
       <th>Character</th>
       <th>Frequency</th>
       <th>Minimum</th>
-      <th>Odds (with <span class="num-players">current</span> players)</th>
+      <th>Odds (with <span class="num-players">current players</span>)</th>
     </tr>
   {% for character_id, opts in role_options.items %}
     <tr>
@@ -357,7 +357,7 @@
     $(function(){
       $('.options-form').on('input', 'input', function(){
         num_players = $('.avatar').length;
-        $('.num-players').html(num_players)
+        $('.num-players').html(num_players + (num_players==1?" player":" players"));
         $('.character-likelihood').each(function(){
           pc_char  = parseInt($(this).parent('tr').find('[name^=pc_]').val());
           min_char = parseInt($(this).parent('tr').find('[name^=min_]').val());
