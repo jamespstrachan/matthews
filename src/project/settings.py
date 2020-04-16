@@ -25,7 +25,8 @@ env.read_env(REPO_BASE_DIR + '/.env')
 
 IS_PRODUCTION = env.bool('IS_PRODUCTION')
 DEBUG         = env.bool('DJANGO_DEBUG', False)
-SHOW_DEBUG_TOOLBAR = getattr(credentials, 'SHOW_DEBUG_TOOLBAR', False)
+SHOW_DEBUG_TOOLBAR = env.bool('DJANGO_SHOW_DEBUG_TOOLBAR', False)
+INTERNAL_IPS  = env('DJANGO_INTERNAL_IPS', default='').split(',')
 ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS', default='').split(',')
 SECRET_KEY    = env('DJANGO_SECRET_KEY', default=None)
 SECRET_DEPLOY_KEY = env('DJANGO_SECRET_DEPLOY_KEY', default=None)
@@ -45,7 +46,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'debug_toolbar',
 ]
 
 MIDDLEWARE = [
@@ -56,8 +56,18 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
+
+
+if SHOW_DEBUG_TOOLBAR:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+    def show_toolbar(request):
+        return True
+    DEBUG_TOOLBAR_CONFIG = {
+        "SHOW_TOOLBAR_CALLBACK" : show_toolbar,
+    }
+
 
 ROOT_URLCONF = 'project.urls'
 
