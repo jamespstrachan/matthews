@@ -36,9 +36,6 @@ BASE_URL = env('DJANGO_BASE_URL', default='')
 INSTALLED_APPS = [
     'matthews',
     'deploy',
-    'anora',
-    'django_tables2',
-    'django_filters',
     'pipeline',
     'bootstrap4',
     'django.contrib.admin',

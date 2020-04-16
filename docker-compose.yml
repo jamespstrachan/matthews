@@ -9,6 +9,8 @@ services:
     ports:
       - "280:80"
       - "281:81"
+    environment:
+      - PORT=80
 
   cache:
     image: memcached

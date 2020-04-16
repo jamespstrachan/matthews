@@ -1,0 +1,7 @@
+/secrets/*
+!README.txt
+db.sqlite3
+.env
+.git
+/static
+/logs

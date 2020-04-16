@@ -1,4 +1,5 @@
 {% load pipeline %}
+{% load updated %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -63,7 +64,11 @@
       {% endblock %}
       </div>
 
-    <div class="credit">😈 Lizzie & James &copy; 2020 😇</div>
+    <div class="credit">
+      updated {% date_updated %}
+      <br>
+      😈 Lizzie & James &copy; 2020 😇
+    </div>
     {% endblock %}
 
 

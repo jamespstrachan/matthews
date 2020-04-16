@@ -13,8 +13,6 @@ from django.conf import settings
 from django.db.models import Count, Q, F, FloatField
 from django.db.models.functions import Cast, Coalesce
 
-from django_tables2 import RequestConfig
-
 from project.emails import send_email
 from .models import *
 
