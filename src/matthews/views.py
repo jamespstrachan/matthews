@@ -349,6 +349,7 @@ def game(request):
         'players':          players,
         'my_player':        my_player,
         'my_action':        Action.objects.filter(round=round, done_by=my_player).first(),
+        'action_undone':    request.GET.get('undone'),
         'haunting_action':  get_haunting_action(my_player, round),
         'game_state':       build_game_state(game),
         'votes':            Action.objects.filter(round=round-1, done_by__game=game) \
@@ -400,16 +401,30 @@ def make_death_report(name):
 
 
 def target(request):
-    game = Game.objects.get(id=request.session['game_id'])
+    game   = Game.objects.get(id=request.session['game_id'])
     player = Player.objects.get(id=request.session['player_id'])
-    target = Player.objects.filter(id=request.POST['target']).first()
+    round  = calculate_round(game)
 
-    if target and target.game.id != game.id:
-        raise Exception("That player's not in this game")
+    game_url = reverse('matthews:game')
 
-    save_action(game, player, target)
+    if int(request.POST['round']) != round:
+        # don't save a vote from a round that's already finished (e.g. a late ghost vote)
+        if player.died_in_round is None or player.died_in_round > round:
+            # but only show a warning if we think they've tried to vote a second time
+            msg = "The voting for this round has closed - your last action was not counted."
+            messages.add_message(request, messages.WARNING, msg)
+    elif 'cancel' in request.POST:
+        action = Action.objects.filter(done_by=player, round=round)
+        action.delete()
+        game_url += '?undone=1'
+    else:
+        target = Player.objects.filter(id=request.POST['target']).first()
 
-    return HttpResponseRedirect(reverse('matthews:game'))
+        if target and target.game.id != game.id:
+            raise Exception("That player's not in this game")
+        save_action(game, player, target)
+
+    return HttpResponseRedirect(game_url)
 
 
 def test404(request):

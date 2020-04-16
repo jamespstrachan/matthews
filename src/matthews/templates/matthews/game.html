@@ -21,7 +21,7 @@
     <h2>Performance review</h2>
   {% endif %}
 
-  <input id="update_opener" type="checkbox" class="d-none" {{my_action|yesno:',checked'}}>
+  <input id="update_opener" type="checkbox" class="d-none" {% if not my_action and not action_undone %}checked{% endif %}>
   <label class="update_panel" for="update_opener">
   {% if round == 0 and not endgame_type %}
     <h2>Introduction</h2>
@@ -167,10 +167,10 @@
 
 
 <form class="vote-form {% if endgame_type %}game_over{% endif %}" action="{% url 'matthews:target' %}" method="POST">
-{% csrf_token %}
+  {% csrf_token %}
   {% for player in players %}
     <input type="radio" name="target" id="player_{{player.id}}" value="{{player.id}}" {%if my_action or endgame_type or not game.date_started%}disabled {%if my_action.done_to == player %}checked {%endif%}{%endif%}>
-    <label class="avatar {% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
+    <label class="avatar n{{forloop.counter0}} {% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
                   {{player.died_in_round|yesno:'mark_dead,mark_dead,'}}
                   "
            for="player_{{player.id}}">
@@ -203,6 +203,8 @@
 
       {% if not my_action %}
       <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
+      {% else %}
+      <input type="submit" name="cancel" value="undo choice" class="btn btn-light">
       {% endif %}
     </label>
     <div class="player_results">
@@ -254,6 +256,8 @@
       <div class="portrait"></div>
       {% if not my_action %}
       <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
+      {% else %}
+      <input type="submit" name="cancel" value="undo choice" class="btn btn-light">
       {% endif %}
     </label>
     {% if endgame_type %}
@@ -271,6 +275,7 @@
 {% if my_action %}
   {% include 'matthews/_waiting_ajax.html' %}
 {% endif %}
+<input type="hidden" name="round" value="{{round}}">
 </form>
 
 
@@ -503,15 +508,15 @@
   margin: 0em auto 0.5em;
 
 }
-.avatar:nth-child(3) .portrait { background-position: top left; }
-.avatar:nth-child(6) .portrait { background-position: top center; }
-.avatar:nth-child(9) .portrait { background-position: top right; }
-.avatar:nth-child(12) .portrait { background-position: center left; }
-.avatar:nth-child(15) .portrait { background-position: center center; }
-.avatar:nth-child(18) .portrait { background-position: center right; }
-.avatar:nth-child(21) .portrait { background-position: bottom left; }
-.avatar:nth-child(24) .portrait { background-position: bottom center; }
-.avatar:nth-child(27) .portrait { background-position: bottom right; }
+.avatar.n0 .portrait { background-position: top left; }
+.avatar.n1 .portrait { background-position: top center; }
+.avatar.n2 .portrait { background-position: top right; }
+.avatar.n3 .portrait { background-position: center left; }
+.avatar.n4 .portrait { background-position: center center; }
+.avatar.n5 .portrait { background-position: center right; }
+.avatar.n6 .portrait { background-position: bottom left; }
+.avatar.n7 .portrait { background-position: bottom center; }
+.avatar.n8 .portrait { background-position: bottom right; }
 [for=player_0] .portrait { background-image: none; background-color: #f2e9e4;}
 
 .vote-form [type=submit] {
