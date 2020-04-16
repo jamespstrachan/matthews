@@ -239,10 +239,10 @@ def game(request):
     round = calculate_round(game)
     my_player = Player.objects.filter(id=request.session.get('player_id')).first()
 
-
+    i_am_dead = (my_player.died_in_round or 0) < round
 
     suspect = None
-    if round % 2 == 0 and my_player.character_id == DETECTIVE_ID:
+    if round % 2 == 0 and my_player.character_id == DETECTIVE_ID and not i_am_dead:
         investigation = Action.objects.filter(round=round-1, done_by=my_player).first()
         suspect = investigation.done_to if investigation else None
 
