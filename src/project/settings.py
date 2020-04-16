@@ -25,6 +25,7 @@ env.read_env(REPO_BASE_DIR + '/.env')
 
 IS_PRODUCTION = env.bool('IS_PRODUCTION')
 DEBUG         = env.bool('DJANGO_DEBUG', False)
+SHOW_DEBUG_TOOLBAR = getattr(credentials, 'SHOW_DEBUG_TOOLBAR', False)
 ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS', default='').split(',')
 SECRET_KEY    = env('DJANGO_SECRET_KEY', default=None)
 SECRET_DEPLOY_KEY = env('DJANGO_SECRET_DEPLOY_KEY', default=None)
