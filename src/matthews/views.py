@@ -3,6 +3,7 @@ from math import floor
 import random
 import hashlib
 import re
+import json
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
@@ -13,11 +14,14 @@ from django.conf import settings
 from django.db.models import Count, Q, F, FloatField
 from django.db.models.functions import Cast, Coalesce
 
-from django_tables2 import RequestConfig
-
 from project.emails import send_email
 from .models import *
 
+
+DEFAULT_GAMEPLAY_OPTIONS = {
+    'hidden_lynching': 1,
+    'shot_clock': 0,
+}
 
 def home(request):
     context = {}
@@ -27,7 +31,20 @@ def home(request):
 def new_game(request):
     game = Game()
     game.save()
-    name = request.GET['leader']
+
+    if 'continue' in request.GET:
+        old_game_id = request.session['game_id']
+        old_game = Game.objects.get(id=old_game_id)
+        old_game.next_game = game
+        old_game.save()
+        game.options = old_game.options
+        game.save()
+        for player in old_game.players.all():
+            new_player = Player(name=player.name, game=game)
+            new_player.save()
+        name = game.players.first().name
+    else:
+        name = request.GET['leader']
     return join(request, game.id, name, True)
 
 
@@ -94,6 +111,44 @@ def join(request, id, name, hash):
     return HttpResponseRedirect(reverse('matthews:game'))
 
 
+
+def update_options(request):
+    game = Game.objects.get(id=request.session['game_id'])
+    if game.players.all().order_by('id').first().id != request.session['player_id']:
+        raise Exception('Only leader can update game options')
+
+    if game.date_started:
+        raise Exception('Can\'t update options for a game which has started')
+
+    if 'reset' in request.POST:
+        game.options = None
+        game.save()
+
+    else:
+        roles = {int(id): {'min': int(request.POST.get('min_'+id)),
+                           'pc': int(request.POST.get('pc_'+id))
+                      }
+                 for id in request.POST.getlist('character_ids[]')}
+
+        gameplay = DEFAULT_GAMEPLAY_OPTIONS.copy()
+        for option in gameplay.keys():
+            if request.POST.get(option) is None:
+                gameplay[option] = 0
+            else:
+                gameplay[option] = request.POST.get(option)
+
+        game.options = {
+            'roles': roles,
+            'gameplay': gameplay,
+        }
+        game.save()
+
+        if 'start' in request.POST:
+            return start(request)
+
+    return HttpResponseRedirect(reverse('matthews:game'))
+
+
 def remove_player(request, id):
     game = Game.objects.get(id=request.session['game_id'])
     if game.players.all().order_by('id').first().id != request.session['player_id']:
@@ -141,13 +196,15 @@ def start(request):
     rng = random.Random()
     num_players = game.players.count()
 
+
     def probabilistic_round(float):
         """ rounds a value up or down based on its decimal part, eg 2.9 -> 3 90% of the time """
         return int(float) + int(rng.random() < float % 1)
 
-    character_ids  = [MAFIA_ID]     * (0 + probabilistic_round(num_players / 4.0))
-    character_ids += [DOCTOR_ID]    * 1 #(1 + probabilistic_round(num_players / 20.0))
-    character_ids += [DETECTIVE_ID] * 1 #(1 + probabilistic_round(num_players / 20.0))
+    character_ids = []
+    for character_id, options in game.options.get('roles').items():
+        character_ids += [int(character_id)] * max(options['min'], probabilistic_round(num_players * options['pc'] / 100))
+
     character_ids += [CIVILIAN_ID]  * (num_players - len(character_ids))
 
     random.Random().shuffle(character_ids)
@@ -164,8 +221,13 @@ def start(request):
 
 def build_game_state(game):
     """ returns a string representing the state of the game """
-    newest_action = Action.objects.filter(done_by__game=game).order_by('-id').first()
-    return '{}-{}-{}'.format(game.players.count(), game.date_started, newest_action)
+    action_ids = Action.objects.filter(done_by__game=game, round=calculate_round(game)) \
+                               .order_by('-id').values_list('id')
+    action_id_str = "".join([str(x[0]) for x in action_ids])
+    if game.date_started:
+        return "{}-{}".format(game.date_started, action_id_str)
+    else:
+        return "{}-{}".format(game.players.count(), hash(json.dumps(game.options)))
 
 
 def state(request):
@@ -193,12 +255,32 @@ def game(request):
     round = calculate_round(game)
     my_player = Player.objects.filter(id=request.session.get('player_id')).first()
 
+    i_am_dead = (my_player.died_in_round or 0) < round
+
     suspect = None
-    if round % 2 == 0 and my_player.character_id == DETECTIVE_ID:
+    if round % 2 == 0 and my_player.character_id == DETECTIVE_ID and not i_am_dead:
         investigation = Action.objects.filter(round=round-1, done_by=my_player).first()
         suspect = investigation.done_to if investigation else None
 
     players = game.players.all()
+
+
+    default_options = {
+        'roles': {
+            MAFIA_ID:     {'min': 1, 'pc': 25},
+            DOCTOR_ID:    {'min': 1, 'pc': 10},
+            DETECTIVE_ID: {'min': 1, 'pc': 10},
+        },
+        'gameplay': DEFAULT_GAMEPLAY_OPTIONS
+    }
+
+    role_options = game.options.get('roles') if game.options else default_options.get('roles')
+    # add in names to the char options array (as it's annoying to look them up in the template)
+    role_options = {int(k): {**v, 'name': ROLE_NAMES[int(k)]}
+                    for k,v in role_options.items()}
+
+    gameplay_options = default_options.get('gameplay').copy()
+    gameplay_options.update(game.options.get('gameplay', {}))
 
     endgame_type = get_endgame_type(game)
     if endgame_type is not None:
@@ -274,29 +356,47 @@ def game(request):
         # eg. players[2].favourite_person = "James"
     else:
         players = players.annotate(has_acted=Count('actions_by', filter=Q(actions_by__round=round)))
+        players = list(players)
+
+        current_actions = Action.objects.filter(done_by__game=game, round=round)
+        # decorate players with an action if they have one for this round
+        for player in players:
+            for current_action in current_actions:
+                if player.id == current_action.done_by_id:
+                    player.action = current_action
+
 
     deaths = game.players.filter(died_in_round=round-1)
     random.seed(game.id+round)
 
+    my_player.is_leader = my_player.id == players[0].id
     context = {
-        'debug':        request.session.get('debug', 0),
-        'invite_url':   make_invite_url(game.id, my_player.name),
-        'game':         game,
-        'round':        round,
-        'players':      players,
-        'my_player':    my_player,
-        'my_action':    Action.objects.filter(round=round, done_by=my_player).first(),
-        'haunting_action': get_haunting_action(my_player, round),
-        'game_state':   build_game_state(game),
-        'votes':        Action.objects.filter(round=round-1, done_by__game=game) \
-                                      .filter(Q(done_by__died_in_round__gte=round-1) | Q(done_by__died_in_round__isnull=True)) \
-                                      .order_by('done_to'),
-        'deaths':       deaths,
-        'death_report': make_death_report(deaths[0].name) if deaths else '',
-        'suspect':      suspect,
-        'MAFIA_ID':     MAFIA_ID,
-        'endgame_type': endgame_type,
+        'debug':            request.session.get('debug', 0),
+        'invite_url':       make_invite_url(game.id, my_player.name),
+        'role_options':     role_options,
+        'gameplay_options': gameplay_options,
+        'game':             game,
+        'round':            round,
+        'is_day':           round % 2 == 0,
+        'players':          players,
+        'my_player':        my_player,
+        'my_action':        Action.objects.filter(round=round, done_by=my_player).first(),
+        'action_undone':    request.GET.get('undone'),
+        'haunting_action':  get_haunting_action(my_player, round),
+        'game_state':       build_game_state(game),
+        'votes':            Action.objects.filter(round=round-1, done_by__game=game) \
+                                          .filter(Q(done_by__died_in_round__gte=round-1) | Q(done_by__died_in_round__isnull=True)) \
+                                          .order_by('done_to'),
+        'deaths':           deaths,
+        'death_report':     make_death_report(deaths[0].name) if deaths else '',
+        'suspect':          suspect,
+        'MAFIA_ID':         MAFIA_ID,
+        'endgame_type':     endgame_type,
     }
+    if endgame_type and game.next_game_id:
+        context.update({
+            'next_invite_url': make_invite_url(game.next_game.id, my_player.name),
+        })
     return render(request, 'matthews/game.html', context)
 
 
@@ -333,16 +433,30 @@ def make_death_report(name):
 
 
 def target(request):
-    game = Game.objects.get(id=request.session['game_id'])
+    game   = Game.objects.get(id=request.session['game_id'])
     player = Player.objects.get(id=request.session['player_id'])
-    target = Player.objects.filter(id=request.POST['target']).first()
+    round  = calculate_round(game)
 
-    if target and target.game.id != game.id:
-        raise Exception("That player's not in this game")
+    game_url = reverse('matthews:game')
 
-    save_action(game, player, target)
+    if int(request.POST['round']) != round:
+        # don't save a vote from a round that's already finished (e.g. a late ghost vote)
+        if player.died_in_round is None or player.died_in_round > round:
+            # but only show a warning if we think they've tried to vote a second time
+            msg = "The voting for this round has closed - your last action was not counted."
+            messages.add_message(request, messages.WARNING, msg)
+    elif 'cancel' in request.POST:
+        action = Action.objects.filter(done_by=player, round=round)
+        action.delete()
+        game_url += '?undone=1'
+    else:
+        target = Player.objects.filter(id=request.POST['target']).first()
 
-    return HttpResponseRedirect(reverse('matthews:game'))
+        if target and target.game.id != game.id:
+            raise Exception("That player's not in this game")
+        save_action(game, player, target)
+
+    return HttpResponseRedirect(game_url)
 
 
 def test404(request):

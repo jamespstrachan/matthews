@@ -7,12 +7,21 @@
   <h2>Game setup</h2>
 {% else %}
   {% if not endgame_type %}
-    <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{round|divisibleby:'2'|yesno:"Daytime discussions,Nightime creeping"}}</h2>
+    <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{is_day|yesno:"Daytime discussions,Nightime creeping"}}</h2>
   {% else %}
+    {% if game.next_game %}
+      <h2>There's a new game with the same players</h2>
+      <a class="btn btn-primary" href="{{next_invite_url}}">Join in</a>
+    {% elif my_player.is_leader %}
+      <a class="btn btn-primary" href="{% url 'matthews:new_game' %}?continue=1">Start a new game with same players</a>
+    {% endif %}
+    <br>
+    <br>
+
     <h2>Performance review</h2>
   {% endif %}
 
-  <input id="update_opener" type="checkbox" class="d-none" {{my_action|yesno:',checked'}}>
+  <input id="update_opener" type="checkbox" class="d-none" {% if not my_action and not action_undone %}checked{% endif %}>
   <label class="update_panel" for="update_opener">
   {% if round == 0 and not endgame_type %}
     <h2>Introduction</h2>
@@ -62,7 +71,7 @@
     <span class="btn btn-primary float-right">Review the game summary</a>
 
   {% else %}
-    {% if round|divisibleby:'2' %}  {####################################### WAKEY WAKEY IT'S MORNING #}
+    {% if is_day %}  {####################################### WAKEY WAKEY IT'S MORNING #}
     <h2>Morning update</h2>
       {% for dead in deaths %}
       {% if my_player.id == dead.id %}
@@ -158,10 +167,10 @@
 
 
 <form class="vote-form {% if endgame_type %}game_over{% endif %}" action="{% url 'matthews:target' %}" method="POST">
-{% csrf_token %}
+  {% csrf_token %}
   {% for player in players %}
     <input type="radio" name="target" id="player_{{player.id}}" value="{{player.id}}" {%if my_action or endgame_type or not game.date_started%}disabled {%if my_action.done_to == player %}checked {%endif%}{%endif%}>
-    <label class="avatar {% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
+    <label class="avatar n{{forloop.counter0}} {% if my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}mark_bad{% endif%}
                   {{player.died_in_round|yesno:'mark_dead,mark_dead,'}}
                   "
            for="player_{{player.id}}">
@@ -181,12 +190,16 @@
       <span>&nbsp;</span>
       {% endif %}
       <br>
-      {% if my_player.id == players.0.id and not game.date_started %}
+      {% if my_player.is_leader and not game.date_started %}
       <a href="{% url 'matthews:remove_player' player.id %}" class="btn btn-danger btn-sm">remove</a>
       {% elif my_player.id == player.id and my_action %}
       <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}Nobody {% endif %}</i>
       {% elif player.has_acted %}
-      <i>has acted</i>
+        {% if is_day and not gameplay_options.hidden_lynching %}
+        <i>chose {% if player.action.done_to %}{{player.action.done_to.name}}{% else %}Nobody {% endif %}</i>
+        {% else %}
+        <i>has acted</i>
+        {% endif %}
       {% else %}
       <i>&nbsp;</i>
       {% endif %}
@@ -194,6 +207,8 @@
 
       {% if not my_action %}
       <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
+      {% else %}
+      <input type="submit" name="cancel" value="undo choice" class="btn btn-light">
       {% endif %}
     </label>
     <div class="player_results">
@@ -245,6 +260,8 @@
       <div class="portrait"></div>
       {% if not my_action %}
       <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
+      {% else %}
+      <input type="submit" name="cancel" value="undo choice" class="btn btn-light">
       {% endif %}
     </label>
     {% if endgame_type %}
@@ -262,10 +279,108 @@
 {% if my_action %}
   {% include 'matthews/_waiting_ajax.html' %}
 {% endif %}
+<input type="hidden" name="round" value="{{round}}">
 </form>
 
 
 {% if not game.date_started %}
+  <h2>Options</h2>
+  {% if not my_player.is_leader %}
+    <p class="my-2">{{players.0.name}} is in control of these options, ask them to make changes if you like.</p>
+  {% endif %}
+  <form class="options-form" action="{% url 'matthews:update_options'%}" method="POST">
+  {% csrf_token %}
+
+  <div class="form-check m-2">
+    <input class="form-check-input" type="checkbox" name="hidden_lynching" id="hidden_lynching"
+      {{gameplay_options.hidden_lynching|yesno:"checked,"}} value="1" {{my_player.is_leader|yesno:",disabled"}}>
+    <label class="form-check-label" for="hidden_lynching">
+      Hide targets of public lynching votes until everyone has voted
+    </label>
+  </div>
+<!--
+  <div class="form-check m-2">
+    <input class="form-check-input" type="checkbox" name="shot_clock" id="shot_clock"
+      {{gameplay_options.shot_clock|yesno:"checked,"}} value="1" {{my_player.is_leader|yesno:",disabled"}}>
+    <label class="form-check-label" for="shot_clock">
+      Last to vote is put on a timer, excluding those who are dead
+    </label>
+  </div>
+//-->
+  <table class="w-100">
+    <tr>
+      <th>Character</th>
+      <th>Frequency</th>
+      <th>Minimum</th>
+      <th>Odds (with <span class="num-players">current players</span>)</th>
+    </tr>
+  {% for character_id, opts in role_options.items %}
+    <tr>
+      <td>{{opts.name}}</td>
+      <td>
+        <input type="hidden" name="character_ids[]" value="{{character_id}}" {{my_player.is_leader|yesno:",disabled"}} >
+        <input type="range" name="pc_{{character_id}}" min="0" max="50" value="{{opts.pc}}" class="custom-range w-100 align-middle" {{my_player.is_leader|yesno:",disabled"}}>
+      </td>
+      <td>
+        <input class="form-control text-right" name="min_{{character_id}}" value="{{opts.min}}" style="width: 60px;" {{my_player.is_leader|yesno:",disabled"}}>
+      </td>
+      <td class="character-likelihood">
+      </td>
+    </tr>
+  {% endfor %}
+  </table>
+  {% if my_player.is_leader %}
+    <div class="mt-2 w-100 text-right">
+      <input class="btn btn-light" type="submit" name="reset" value="Reset to default">
+      <input class="btn btn-primary" type="submit" value="Save options">
+      <input class="btn btn-primary" type="submit" name="start" value="Start game">
+    </div>
+  {% endif %}
+  </form>
+
+  <br>
+
+  <style>
+  .options-form sub {color: #ccc}
+  .options-form .form-check label {cursor: pointer;}
+  {% if my_player.is_leader %}
+    .options-form td:nth-child(2) { width: 50%;}
+    .options-form td:nth-child(4) { width: 25%;}
+  {% else %}
+    .options-form th:nth-child(2),
+    .options-form th:nth-child(3),
+    .options-form td:nth-child(2),
+    .options-form td:nth-child(3) { display: none;}
+  {% endif %}
+  </style>
+  <script>
+    $(function(){
+      $('.options-form').on('input', 'input', function(){
+        num_players = $('.avatar').length;
+        $('.num-players').html(num_players + (num_players==1?" player":" players"));
+        $('.character-likelihood').each(function(){
+          pc_char  = parseInt($(this).parent('tr').find('[name^=pc_]').val());
+          min_char = parseInt($(this).parent('tr').find('[name^=min_]').val());
+          if(pc_char == 0){
+            min = min_char;
+            max = min_char;
+          }else{
+            num_char = num_players * pc_char / 100;
+            min      = Math.max(min_char, Math.floor(num_char));
+            max      = Math.max(min_char, Math.ceil(num_char));
+            pc_max   = parseInt((num_char % 1) * 100);
+            pc_min   = 100 - pc_max;
+          }
+          $(this).html(max==min ? `${min} <sub>100%</sub>`
+                                : `${min} <sub>${pc_min}%</sub> or ${max} <sub>${pc_max}%</sub>`);
+        })
+      });
+
+      $('.options-form input').trigger('input')
+    })
+  </script>
+
+
   <h2>Rules</h2>
   <ul>
     <li>A consensus vote by the living good guys will succeed in lynching anyone</li>
@@ -276,23 +391,26 @@
     <li>Good guys win once there are no bad guys left alive</li>
     <li>Bad guys win once they are the majority</li>
   </ul>
-  {% if my_player.id == players.0.id  %}
+
+  <br>
+
+  {% if my_player.is_leader  %}
     <h2>Invite more players</h2>
     <form action="{% url 'matthews:invite' game.id %}" method="POST">
     {% csrf_token %}
       <textarea name="name_and_email" class="w-100 h-5" rows=4 placeholder="add like: Steve, stevie@gmail.com  (separated by new line)"></textarea>
       <p>(we don't store the email address, we send a single invite email)</p>
       <input type="submit" value="Invite to game" class="btn btn-primary">
-      <a class="btn btn-primary float-right" href="{% url 'matthews:start' %}">Start game</a>
     </form>
   {% else %}
     <h2>Waiting for all invited players to join</h2>
     {{players.0.name}} is in charge of starting game, bug them if you think we should just crack on with it
     {% include 'matthews/_waiting_ajax.html' %}
   {% endif %}
-{% else %}
+
+{% else %}{# if game started and not ended #}
   <div class="btn-group mt-5">
-  {% if my_player.id == players.0.id  %}
+  {% if my_player.is_leader  %}
     <a class="btn btn-light btn-sm " href="{% url 'matthews:restart_round' round %}"
        onclick="return confirm('Are you sure? This will undo all actions since start of round {{round|add:1}}');"
        >Restart this round</a>
@@ -312,7 +430,7 @@
   </div>
 {% endif %}
 
-{% if my_player.id == players.0.id  %}
+{% if my_player.is_leader or endgame_type %}
 <div class="secret-link input-group mt-5">
   <div class="input-group-prepend">
     <div class="input-group-text">Your secret link to this game</div>
@@ -412,15 +530,15 @@
   margin: 0em auto 0.5em;
 
 }
-.avatar:nth-child(3) .portrait { background-position: top left; }
-.avatar:nth-child(6) .portrait { background-position: top center; }
-.avatar:nth-child(9) .portrait { background-position: top right; }
-.avatar:nth-child(12) .portrait { background-position: center left; }
-.avatar:nth-child(15) .portrait { background-position: center center; }
-.avatar:nth-child(18) .portrait { background-position: center right; }
-.avatar:nth-child(21) .portrait { background-position: bottom left; }
-.avatar:nth-child(24) .portrait { background-position: bottom center; }
-.avatar:nth-child(27) .portrait { background-position: bottom right; }
+.avatar.n0 .portrait { background-position: top left; }
+.avatar.n1 .portrait { background-position: top center; }
+.avatar.n2 .portrait { background-position: top right; }
+.avatar.n3 .portrait { background-position: center left; }
+.avatar.n4 .portrait { background-position: center center; }
+.avatar.n5 .portrait { background-position: center right; }
+.avatar.n6 .portrait { background-position: bottom left; }
+.avatar.n7 .portrait { background-position: bottom center; }
+.avatar.n8 .portrait { background-position: bottom right; }
 [for=player_0] .portrait { background-image: none; background-color: #f2e9e4;}
 
 .vote-form [type=submit] {
