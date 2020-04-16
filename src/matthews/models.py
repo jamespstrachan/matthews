@@ -17,7 +17,7 @@ ROLE_NAMES = {
 class DictField(models.TextField):
     """ serialises dicts for saving """
     def from_db_value(self, value, *args):
-        return json.loads(value) if value else None
+        return json.loads(value) if value else {}
 
     def get_db_prep_save(self, value, *args, **kwargs):
         return json.dumps(value) if value else None

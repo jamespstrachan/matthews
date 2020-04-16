@@ -7,7 +7,7 @@
   <h2>Game setup</h2>
 {% else %}
   {% if not endgame_type %}
-    <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{round|divisibleby:'2'|yesno:"Daytime discussions,Nightime creeping"}}</h2>
+    <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{is_day|yesno:"Daytime discussions,Nightime creeping"}}</h2>
   {% else %}
     {% if game.next_game %}
       <h2>There's a new game with the same players</h2>
@@ -71,7 +71,7 @@
     <span class="btn btn-primary float-right">Review the game summary</a>
 
   {% else %}
-    {% if round|divisibleby:'2' %}  {####################################### WAKEY WAKEY IT'S MORNING #}
+    {% if is_day %}  {####################################### WAKEY WAKEY IT'S MORNING #}
     <h2>Morning update</h2>
       {% for dead in deaths %}
       {% if my_player.id == dead.id %}
@@ -195,7 +195,11 @@
       {% elif my_player.id == player.id and my_action %}
       <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}Nobody {% endif %}</i>
       {% elif player.has_acted %}
-      <i>has acted</i>
+        {% if is_day and not game.options.hidden_lynching %}
+        <i>chose {% if player.action.done_to %}{{player.action.done_to.name}}{% else %}Nobody {% endif %}</i>
+        {% else %}
+        <i>has acted</i>
+        {% endif %}
       {% else %}
       <i>&nbsp;</i>
       {% endif %}
@@ -282,10 +286,27 @@
 {% if not game.date_started %}
   <h2>Options</h2>
   {% if not my_player.is_leader %}
-    <p class="my-2">{{players.0.name}} is in control of these options, ask them to make changes if you like</p>
+    <p class="my-2">{{players.0.name}} is in control of these options, ask them to make changes if you like.</p>
   {% endif %}
-  <form class="options-form form-inline" action="{% url 'matthews:update_options'%}" method="POST">
+  <form class="options-form" action="{% url 'matthews:update_options'%}" method="POST">
   {% csrf_token %}
+
+  <div class="form-check m-2">
+    <input class="form-check-input" type="checkbox" name="hidden_lynching" id="hidden_lynching"
+      {{gameplay_options.hidden_lynching|yesno:"checked,"}} value="1" {{my_player.is_leader|yesno:",disabled"}}>
+    <label class="form-check-label" for="hidden_lynching">
+      Hide targets of public lynching votes until everyone has voted
+    </label>
+  </div>
+<!--
+  <div class="form-check m-2">
+    <input class="form-check-input" type="checkbox" name="shot_clock" id="shot_clock"
+      {{gameplay_options.shot_clock|yesno:"checked,"}} value="1" {{my_player.is_leader|yesno:",disabled"}}>
+    <label class="form-check-label" for="shot_clock">
+      Last to vote is put on a timer, excluding those who are dead
+    </label>
+  </div>
+//-->
   <table class="w-100">
     <tr>
       <th>Character</th>
@@ -293,7 +314,7 @@
       <th>Minimum</th>
       <th>Odds (with <span class="num-players">current</span> players)</th>
     </tr>
-  {% for character_id, opts in char_options.items %}
+  {% for character_id, opts in role_options.items %}
     <tr>
       <td>{{opts.name}}</td>
       <td>
@@ -321,6 +342,7 @@
 
   <style>
   .options-form sub {color: #ccc}
+  .options-form .form-check label {cursor: pointer;}
   {% if my_player.is_leader %}
     .options-form td:nth-child(2) { width: 50%;}
     .options-form td:nth-child(4) { width: 25%;}

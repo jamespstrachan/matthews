@@ -18,6 +18,11 @@ from project.emails import send_email
 from .models import *
 
 
+DEFAULT_GAMEPLAY_OPTIONS = {
+    'hidden_lynching': 1,
+    'shot_clock': 0,
+}
+
 def home(request):
     context = {}
     return render(request, 'matthews/home.html', context)
@@ -124,8 +129,17 @@ def update_options(request):
                            'pc': int(request.POST.get('pc_'+id))
                       }
                  for id in request.POST.getlist('character_ids[]')}
+
+        gameplay = DEFAULT_GAMEPLAY_OPTIONS.copy()
+        for option in gameplay.keys():
+            if request.POST.get(option) is None:
+                gameplay[option] = 0
+            else:
+                gameplay[option] = request.POST.get(option)
+
         game.options = {
             'roles': roles,
+            'gameplay': gameplay,
         }
         game.save()
 
@@ -207,9 +221,11 @@ def start(request):
 
 def build_game_state(game):
     """ returns a string representing the state of the game """
-    newest_action = Action.objects.filter(done_by__game=game).order_by('-id').first()
+    action_ids = Action.objects.filter(done_by__game=game, round=calculate_round(game)) \
+                               .order_by('-id').values_list('id')
+    action_id_str = "".join([str(x[0]) for x in action_ids])
     if game.date_started:
-        return "{}-{}".format(game.date_started, newest_action)
+        return "{}-{}".format(game.date_started, action_id_str)
     else:
         return "{}-{}".format(game.players.count(), hash(json.dumps(game.options)))
 
@@ -248,18 +264,23 @@ def game(request):
 
     players = game.players.all()
 
+
     default_options = {
         'roles': {
             MAFIA_ID:     {'min': 1, 'pc': 25},
             DOCTOR_ID:    {'min': 1, 'pc': 10},
             DETECTIVE_ID: {'min': 1, 'pc': 10},
-        }
+        },
+        'gameplay': DEFAULT_GAMEPLAY_OPTIONS
     }
 
     role_options = game.options.get('roles') if game.options else default_options.get('roles')
     # add in names to the char options array (as it's annoying to look them up in the template)
-    char_options = {int(k): {**v, 'name': ROLE_NAMES[int(k)]}
+    role_options = {int(k): {**v, 'name': ROLE_NAMES[int(k)]}
                     for k,v in role_options.items()}
+
+    gameplay_options = default_options.get('gameplay').copy()
+    gameplay_options.update(game.options.get('gameplay', {}))
 
     endgame_type = get_endgame_type(game)
     if endgame_type is not None:
@@ -335,6 +356,15 @@ def game(request):
         # eg. players[2].favourite_person = "James"
     else:
         players = players.annotate(has_acted=Count('actions_by', filter=Q(actions_by__round=round)))
+        players = list(players)
+
+        current_actions = Action.objects.filter(done_by__game=game, round=round)
+        # decorate players with an action if they have one for this round
+        for player in players:
+            for current_action in current_actions:
+                if player.id == current_action.done_by_id:
+                    player.action = current_action
+
 
     deaths = game.players.filter(died_in_round=round-1)
     random.seed(game.id+round)
@@ -343,9 +373,11 @@ def game(request):
     context = {
         'debug':            request.session.get('debug', 0),
         'invite_url':       make_invite_url(game.id, my_player.name),
-        'char_options':     char_options,
+        'role_options':     role_options,
+        'gameplay_options': gameplay_options,
         'game':             game,
         'round':            round,
+        'is_day':           round % 2 == 0,
         'players':          players,
         'my_player':        my_player,
         'my_action':        Action.objects.filter(round=round, done_by=my_player).first(),
