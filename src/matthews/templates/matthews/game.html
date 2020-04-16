@@ -9,6 +9,15 @@
   {% if not endgame_type %}
     <h2><span style="opacity: 0.3">Round {{round|add:'1'}}</span>  {{round|divisibleby:'2'|yesno:"Daytime discussions,Nightime creeping"}}</h2>
   {% else %}
+    {% if game.next_game %}
+      <h2>There's a new game with the same players</h2>
+      <a class="btn btn-primary" href="{{next_invite_url}}">Join in</a>
+    {% elif my_player.is_leader %}
+      <a class="btn btn-primary" href="{% url 'matthews:new_game' %}?continue=1">Start a new game with same players</a>
+    {% endif %}
+    <br>
+    <br>
+
     <h2>Performance review</h2>
   {% endif %}
 
@@ -371,7 +380,8 @@
     {{players.0.name}} is in charge of starting game, bug them if you think we should just crack on with it
     {% include 'matthews/_waiting_ajax.html' %}
   {% endif %}
-{% else %}
+
+{% else %}{# if game started and not ended #}
   <div class="btn-group mt-5">
   {% if my_player.is_leader  %}
     <a class="btn btn-light btn-sm " href="{% url 'matthews:restart_round' round %}"
@@ -393,7 +403,7 @@
   </div>
 {% endif %}
 
-{% if my_player.is_leader  %}
+{% if my_player.is_leader or endgame_type %}
 <div class="secret-link input-group mt-5">
   <div class="input-group-prepend">
     <div class="input-group-text">Your secret link to this game</div>

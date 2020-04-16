@@ -26,7 +26,20 @@ def home(request):
 def new_game(request):
     game = Game()
     game.save()
-    name = request.GET['leader']
+
+    if 'continue' in request.GET:
+        old_game_id = request.session['game_id']
+        old_game = Game.objects.get(id=old_game_id)
+        old_game.next_game = game
+        old_game.save()
+        game.options = old_game.options
+        game.save()
+        for player in old_game.players.all():
+            new_player = Player(name=player.name, game=game)
+            new_player.save()
+        name = game.players.first().name
+    else:
+        name = request.GET['leader']
     return join(request, game.id, name, True)
 
 
@@ -347,6 +360,10 @@ def game(request):
         'MAFIA_ID':         MAFIA_ID,
         'endgame_type':     endgame_type,
     }
+    if endgame_type and game.next_game_id:
+        context.update({
+            'next_invite_url': make_invite_url(game.next_game.id, my_player.name),
+        })
     return render(request, 'matthews/game.html', context)
 
 

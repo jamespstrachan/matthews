@@ -32,6 +32,8 @@ class User(AbstractUser):
 class Game(models.Model):
     date_started = models.DateTimeField(null=True, blank=True)
     options      = DictField(blank=True, null=True)
+    next_game    = models.OneToOneField('Game', related_name='previous_game',
+                                        on_delete=models.SET_NULL, blank=True, null=True)
 
     def list_good_guys(self):
         return self.players.filter(died_in_round__isnull=True) \
