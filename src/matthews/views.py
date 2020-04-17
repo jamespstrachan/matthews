@@ -19,7 +19,8 @@ from .models import *
 
 
 DEFAULT_GAMEPLAY_OPTIONS = {
-    'hidden_lynching': 1,
+    'hidden_lynching': 1,    # Don't show targets of lynching votes, only show who voted for who on results panel
+    'mafia_kills_shared': 0, # Show mafia members who other mafia have attempted to assassinate in real time
     'shot_clock': 0,
 }
 

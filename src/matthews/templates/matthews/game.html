@@ -202,7 +202,9 @@
       {% elif my_player.id == player.id and my_action %}
       <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}Nobody {% endif %}</i>
       {% elif player.has_acted %}
-        {% if is_day and not gameplay_options.hidden_lynching %}
+        {% if not is_day and gameplay_options.mafia_kills_shared and my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}
+        <i>targeted {% if player.action.done_to %}{{player.action.done_to.name}}{% else %}Nobody {% endif %}</i>
+        {% elif is_day and not gameplay_options.hidden_lynching %}
         <i>chose {% if player.action.done_to %}{{player.action.done_to.name}}{% else %}Nobody {% endif %}</i>
         {% else %}
         <i>has acted</i>
@@ -215,7 +217,7 @@
       {% if not my_action %}
       <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
       {% else %}
-      <input type="submit" name="cancel" value="undo choice" class="btn btn-light">
+      <input type="submit" name="cancel" value="undo choice" class="btn btn-secondary">
       {% endif %}
     </label>
     <div class="player_results">
@@ -268,7 +270,7 @@
       {% if not my_action %}
       <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
       {% else %}
-      <input type="submit" name="cancel" value="undo choice" class="btn btn-light">
+      <input type="submit" name="cancel" value="undo choice" class="btn btn-secondary">
       {% endif %}
     </label>
     {% if endgame_type %}
@@ -303,6 +305,14 @@
       {{gameplay_options.hidden_lynching|yesno:"checked,"}} value="1" {{my_player.is_leader|yesno:",disabled"}}>
     <label class="form-check-label" for="hidden_lynching">
       Hide targets of public lynching votes until everyone has voted
+    </label>
+  </div>
+
+  <div class="form-check m-2">
+    <input class="form-check-input" type="checkbox" name="mafia_kills_shared" id="mafia_kills_shared"
+      {{gameplay_options.mafia_kills_shared|yesno:"checked,"}} value="1" {{my_player.is_leader|yesno:",disabled"}}>
+    <label class="form-check-label" for="mafia_kills_shared">
+      Show mafia who their team mates have tried to assasinate
     </label>
   </div>
 <!--
