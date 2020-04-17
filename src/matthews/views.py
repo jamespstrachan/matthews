@@ -39,10 +39,7 @@ def new_game(request):
         old_game.save()
         game.options = old_game.options
         game.save()
-        for player in old_game.players.all():
-            new_player = Player(name=player.name, game=game)
-            new_player.save()
-        name = game.players.first().name
+        name = old_game.players.first().name
     else:
         name = request.GET['leader']
     return join(request, game.id, name, True)
@@ -109,7 +106,6 @@ def join(request, id, name, hash):
     request.session['player_id'] = player.id
 
     return HttpResponseRedirect(reverse('matthews:game'))
-
 
 
 def update_options(request):
@@ -185,7 +181,6 @@ def restart_round(request, round):
         player.died_in_round = None
         player.save()
     return HttpResponseRedirect(reverse('matthews:game'))
-
 
 
 def start(request):
@@ -393,6 +388,7 @@ def game(request):
         'MAFIA_ID':         MAFIA_ID,
         'endgame_type':     endgame_type,
     }
+
     if endgame_type and game.next_game_id:
         context.update({
             'next_invite_url': make_invite_url(game.next_game.id, my_player.name),
@@ -429,7 +425,6 @@ def make_death_report(name):
                            )
                     for x in templates)
     return "\n\n".join(report_lines)
-
 
 
 def target(request):

@@ -14,6 +14,13 @@
       <a class="btn btn-primary" href="{{next_invite_url}}">Join in</a>
     {% elif my_player.is_leader %}
       <a class="btn btn-primary" href="{% url 'matthews:new_game' %}?continue=1">Start a new game with same players</a>
+    {% else %}
+      <h2>Play more?</h2>
+      <p>
+        Kick <b>{{players.0.name}}</b> to start a new game. Once they've done that, hit refresh to get
+        your joining link here.
+      </p>
+
     {% endif %}
     <br>
     <br>
