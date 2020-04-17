@@ -8,17 +8,26 @@
   last_game_state = '{{game_state}}';
   check_seconds = 3;
   check_reps    = 60;
+  allow_redirect = true;
   var $manual_check;
+
   $(function(){
     $manual_check = $('#check_game_state');
     $manual_check.hide();
   });
+
+  // Prevent further status checking and location changes if we're already navigating somewhere
+  window.addEventListener('beforeunload', function(event) {
+    allow_redirect = false;
+  });
+
   function check_game_state(){
+    if(!allow_redirect){ return; }
     $.ajax({
       url: "{% url 'matthews:state' %}",
       method: 'GET',
     }).done(function(data){
-      if(data != last_game_state){
+      if(data != last_game_state && allow_redirect){
         window.location = window.location;
       }
     })
