@@ -190,7 +190,7 @@
       <div class="portrait"></div>
       <p class="info">
       {% if my_player.id == player.id %}
-      <span>You, {{my_player.character|default_if_none:'welcome'}}</span>
+      <span>You{% if my_player.character %}, {{my_player.character}}{%endif%}</span>
       {% elif my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}
       <span>{{player.character}}</span>
       {% else %}
@@ -496,7 +496,7 @@
 .play_as {
   position: absolute;
   right: 0;
-  bottom: 0;
+  bottom: 1em;
   display: none;
 }
 .avatar:hover .play_as { display: block; }
@@ -526,6 +526,7 @@
   transform: scale(1.1);
   box-shadow: 2px 3px 4px rgba(0,0,0,0.2);
   background-color: #007bff;
+  cursor: default;
 }
 [type=radio]:checked + .avatar h2 { color: white; }
 
@@ -550,11 +551,12 @@
 
 .vote-form [type=submit] {
   position: absolute;
-  top: 102%;
+  top: 80%;
   width: 120%;
   left: -10%;
   display: none;
   z-index: 2;
+  cursor: pointer;
 }
 .vote-form [type=radio]:checked + .avatar [type=submit] {display: block;}
 

@@ -231,15 +231,17 @@ def state(request):
 
 
 def game(request):
-    play_as_id = request.GET.get('play_as_id')
-    if play_as_id:
-        request.session['player_id'] = int(play_as_id)
-        return HttpResponseRedirect(reverse('matthews:game'))
 
     debug = request.GET.get('debug')
     if debug is not None:
         request.session['debug'] = int(debug)
         messages.add_message(request, messages.INFO, 'debug set to {}'.format(debug))
+        return HttpResponseRedirect(reverse('matthews:game'))
+
+    is_debug   = request.session.get('debug', 0)
+    play_as_id = request.GET.get('play_as_id')
+    if is_debug and play_as_id:
+        request.session['player_id'] = int(play_as_id)
         return HttpResponseRedirect(reverse('matthews:game'))
 
     game_id = request.session.get('game_id')
@@ -249,6 +251,10 @@ def game(request):
     game = Game.objects.get(id=game_id)
     round = calculate_round(game)
     my_player = Player.objects.filter(id=request.session.get('player_id')).first()
+
+    if not my_player:
+        messages.add_message(request, messages.INFO, 'Your player was kicked from the game')
+        return HttpResponseRedirect(reverse('matthews:home'))
 
     i_am_dead = (my_player.died_in_round or 9999) < round
 
@@ -366,7 +372,7 @@ def game(request):
 
     my_player.is_leader = my_player.id == players[0].id
     context = {
-        'debug':            request.session.get('debug', 0),
+        'debug':            is_debug,
         'invite_url':       make_invite_url(game.id, my_player.name),
         'role_options':     role_options,
         'gameplay_options': gameplay_options,
