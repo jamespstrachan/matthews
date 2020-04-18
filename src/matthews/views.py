@@ -21,7 +21,8 @@ from .models import *
 GAMEPLAY_OPTIONS = {
     "lynching_shared":    {"description": "Everyone can see public lynching votes as they are cast" },
     "mafia_kills_shared": {"description": "Mafia can see who their team mates are trying to assasinate (<i>if they refresh the page</i>)"},
-    "shot_clock": {"description": "Slowest player in the round has 30 seconds to act or their choice is set to None"},
+    "show_suspicion_pc_on_death": {"description": "When a player is killed their correct % suspicion is shared with everyone"},
+    #"shot_clock": {"description": "Slowest player in the round has 30 seconds to act or their choice is set to None"},
 }
 
 def home(request):
@@ -271,13 +272,14 @@ def game(request):
     role_options = {int(k): {**v, 'name': ROLE_NAMES[int(k)]}
                     for k,v in role_options.items()}
 
+    deaths = game.players.filter(died_in_round=round-1)
 
     endgame_type = get_endgame_type(game)
+    bad_guy_ids = [MAFIA_ID]
+    good_guy_ids = [CIVILIAN_ID, DOCTOR_ID, DETECTIVE_ID]
+    day_regex   = '^\d*[02468]$'
+    night_regex = '^\d*[13579]$'
     if endgame_type is not None:
-        bad_guy_ids = [MAFIA_ID]
-        good_guy_ids = [CIVILIAN_ID, DOCTOR_ID, DETECTIVE_ID]
-        day_regex   = '^\d*[02468]$'
-        night_regex = '^\d*[13579]$'
         was_alive_to_act         = Q(actions_by__round__lte=F('died_in_round')) | Q(died_in_round__isnull=True)
         was_alive_to_be_acted_on = Q(actions_to__round__lte=F('died_in_round')) | Q(died_in_round__isnull=True)
         players = players.annotate(lynched_bad=Count('actions_by', distinct=True,
@@ -330,6 +332,7 @@ def game(request):
                         ).annotate(successful_kill_pc=Cast(F('killed_good'), FloatField())
                                                     / Cast(Coalesce(F('died_in_round') + 1, round) , FloatField())
                                                     * 2 * 100
+                                  # this doesn't seem to take into account if mafia was alive
                         ).annotate(mafia_target=Count('actions_to', distinct=True,
                                                      filter=Q(was_alive_to_be_acted_on,
                                                               actions_to__round__iregex=night_regex,
@@ -355,7 +358,13 @@ def game(request):
                 if player.id == current_action.done_by_id:
                     player.action = current_action
 
-    deaths = game.players.filter(died_in_round=round-1)
+        if 'show_suspicion_pc_on_death' in game.options.get('gameplay', {}) and round > 1:
+            for death in deaths:
+                correct_actions = death.actions_by.filter(round__iregex=night_regex,
+                                                          done_to__character_id__in=bad_guy_ids) \
+                                                  .count()
+                death.suspicion_pc = int(correct_actions / floor(round / 2) * 100)
+
     random.seed(game.id+round)
 
     my_player.is_leader = my_player.id == players[0].id

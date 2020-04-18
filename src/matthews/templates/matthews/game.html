@@ -97,6 +97,7 @@
       </p>
       <p>
         <b>{{dead}}</b> is the latest victim of the mafia.
+        {% include 'matthews/_death_suspicion_pc.html' with player=dead %}
       </p>
       {% empty %}
       <p>
@@ -149,6 +150,7 @@
       {% for dead in deaths %}
       <p>
         The people have spoken and decided to put <b>{{dead}}</b> to death by hanging.
+        {% include 'matthews/_death_suspicion_pc.html' with player=dead %}
       </p>
       {% empty %}
       <p>

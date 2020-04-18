@@ -1,0 +1,11 @@
+{% if player.suspicion_pc > -1 %}
+  {% if player.suspicion_pc > 66 %}
+    Which is a shame because they were right about the bad guys {{dead.suspicion_pc}}% of the time.
+  {% elif player.suspicion_pc > 33 %}
+    They knew something about the bad guys, picking them out {{dead.suspicion_pc}}% of the time.
+  {% elif player.suspicion_pc > 0 %}
+    They were deceived by the bad guys, with a {{dead.suspicion_pc}}% success rate.
+  {% else %}
+    No real loss, they never suspected a single bad guy in the night - perhaps they were one!
+  {% endif %}
+{% endif %}
