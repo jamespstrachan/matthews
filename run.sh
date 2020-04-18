@@ -7,4 +7,4 @@
 #sleep 1
 
 # Start the server
-/usr/local/bin/gunicorn --bind=0.0.0.0:$PORT --pythonpath=/app/src project.wsgi --reload
+/usr/local/bin/gunicorn --bind=0.0.0.0:$PORT --pythonpath=/app/src project.wsgi --reload --workers=3
