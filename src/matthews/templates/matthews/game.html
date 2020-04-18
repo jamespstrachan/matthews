@@ -439,6 +439,7 @@
   {% endif %}
   </style>
   <script>
+
     $(function(){
       $('.options-form').on('input', 'input', function(){
         num_players = $('.avatar').length;
@@ -446,18 +447,7 @@
         $('.character-likelihood').each(function(){
           pc_char  = parseInt($(this).parent('tr').find('[name^=pc_]').val());
           min_char = parseInt($(this).parent('tr').find('[name^=min_]').val());
-          if(pc_char == 0){
-            min = min_char;
-            max = min_char;
-          }else{
-            num_char = num_players * pc_char / 100;
-            min      = Math.max(min_char, Math.floor(num_char));
-            max      = Math.max(min_char, Math.ceil(num_char));
-            pc_max   = parseInt((num_char % 1) * 100);
-            pc_min   = 100 - pc_max;
-          }
-          $(this).html(max==min ? `${min} <sub>100%</sub>`
-                                : `${min} <sub>${pc_min}%</sub> or ${max} <sub>${pc_max}%</sub>`);
+          $(this).html(describe_character_odds(num_players, pc_char, min_char));
         })
       });
 
@@ -507,12 +497,19 @@
 
     <br>
     <input type="checkbox" class="open_next" id="open_next_rules">
-    <label for="open_next_rules" class="btn btn-light w-100">Review rules and modifiers</label>
+    <label for="open_next_rules" class="btn btn-light w-100">Review character mix, rules and modifiers</label>
     <label class="row bg-light" for="open_next_rules">
       <div class="col-0 col-md-1"></div>
       <div class="col-12 col-md-10 p-3">
-        <h4>Base rules</h4>
-        {% include 'matthews/_rules.html' %}
+        <h4>Character mix</h4>
+        <p>
+          There will be
+          {% for character_id, opts in role_options.items %}
+            {% if forloop.last and not forloop.first %}and{% endif %}
+            <span class="describe_odds" data-num="{{players|length}}" data-pc="{{opts.pc}}" data-min="{{opts.min}}" data-name="{{opts.name}}"></span>
+            {% if forloop.revcounter > 2 %},{% endif %}
+          {% endfor %}
+        </p>
 
         <h4>Game options in play</h4>
         <ul>
@@ -525,6 +522,10 @@
             <li>No modifiers are in play</li>
           {% endif %}
         </ul>
+
+        <h4>Base rules</h4>
+        {% include 'matthews/_rules.html' %}
+
       </div>
     </label>
   {% if not endgame_type %}
@@ -541,7 +542,41 @@
 </div>
 {% endif %}
 
+<script>
+$(function(){
+  $('.describe_odds').each(function(){
+    $(this).html(describe_character_odds($(this).attr('data-num'), $(this).attr('data-pc'),
+                                         $(this).attr('data-min'), $(this).attr('data-name')));
+  })
+})
+
+// return a string describing the likelihood based on the number of players, the percentage
+// of players who should have that role and a minimum
+function describe_character_odds(num_players, percentage, minimum, name=''){
+  if(percentage == 0){
+    min = minimum;
+    max = minimum;
+  }else{
+    num_char = num_players * percentage / 100;
+    min      = Math.max(minimum, Math.floor(num_char));
+    max      = Math.max(minimum, Math.ceil(num_char));
+    pc_max   = parseInt((num_char % 1) * 100);
+    pc_min   = 100 - pc_max;
+  }
+  if(name && (max != 1 || min != 1)){
+      name += 's'
+  }
+  if(max==min){
+    return `${min} <sub>100%</sub> ${name}`;
+  }else{
+    return `${min} <sub>${pc_min}%</sub> or ${max} <sub>${pc_max}%</sub> ${name}`;
+  }
+}
+</script>
+
+
 <style>
+.describe_odds sub {color: #ccc}
 
 .open_next {display: none;}
 .open_next + label {}
