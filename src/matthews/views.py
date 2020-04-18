@@ -18,10 +18,10 @@ from project.emails import send_email
 from .models import *
 
 
-DEFAULT_GAMEPLAY_OPTIONS = {
-    'hidden_lynching': 1,    # Don't show targets of lynching votes, only show who voted for who on results panel
-    'mafia_kills_shared': 0, # Show mafia members who other mafia have attempted to assassinate in real time
-    'shot_clock': 0,
+GAMEPLAY_OPTIONS = {
+    "lynching_shared":    {"description": "Everyone can see public lynching votes as they are cast" },
+    "mafia_kills_shared": {"description": "Mafia can see who their team mates are trying to assasinate (<i>if they refresh the page</i>)"},
+    "shot_clock": {"description": "Slowest player in the round has 30 seconds to act or their choice is set to None"},
 }
 
 def home(request):
@@ -127,16 +127,9 @@ def update_options(request):
                       }
                  for id in request.POST.getlist('character_ids[]')}
 
-        gameplay = DEFAULT_GAMEPLAY_OPTIONS.copy()
-        for option in gameplay.keys():
-            if request.POST.get(option) is None:
-                gameplay[option] = 0
-            else:
-                gameplay[option] = request.POST.get(option)
-
         game.options = {
             'roles': roles,
-            'gameplay': gameplay,
+            'gameplay': [x for x in request.POST.getlist('game_options[]')],
         }
         game.save()
 
@@ -267,22 +260,17 @@ def game(request):
     players = game.players.all()
 
 
-    default_options = {
-        'roles': {
-            MAFIA_ID:     {'min': 1, 'pc': 25},
-            DOCTOR_ID:    {'min': 1, 'pc': 10},
-            DETECTIVE_ID: {'min': 1, 'pc': 10},
-        },
-        'gameplay': DEFAULT_GAMEPLAY_OPTIONS
+    default_roles = {
+        MAFIA_ID:     {'min': 1, 'pc': 25},
+        DOCTOR_ID:    {'min': 1, 'pc': 10},
+        DETECTIVE_ID: {'min': 1, 'pc': 10},
     }
 
-    role_options = game.options.get('roles') if game.options else default_options.get('roles')
+    role_options = game.options.get('roles') if game.options else default_roles
     # add in names to the char options array (as it's annoying to look them up in the template)
     role_options = {int(k): {**v, 'name': ROLE_NAMES[int(k)]}
                     for k,v in role_options.items()}
 
-    gameplay_options = default_options.get('gameplay').copy()
-    gameplay_options.update(game.options.get('gameplay', {}))
 
     endgame_type = get_endgame_type(game)
     if endgame_type is not None:
@@ -367,7 +355,6 @@ def game(request):
                 if player.id == current_action.done_by_id:
                     player.action = current_action
 
-
     deaths = game.players.filter(died_in_round=round-1)
     random.seed(game.id+round)
 
@@ -376,7 +363,7 @@ def game(request):
         'debug':            is_debug,
         'invite_url':       make_invite_url(game.id, my_player.name),
         'role_options':     role_options,
-        'gameplay_options': gameplay_options,
+        'gameplay_options': GAMEPLAY_OPTIONS,
         'game':             game,
         'round':            round,
         'is_day':           round % 2 == 0,

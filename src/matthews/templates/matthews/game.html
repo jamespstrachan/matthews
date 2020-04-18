@@ -202,9 +202,9 @@
       {% elif my_player.id == player.id and my_action %}
       <i>chose {% if my_action.done_to %}{{my_action.done_to.name}}{% else %}Nobody {% endif %}</i>
       {% elif player.has_acted %}
-        {% if not is_day and gameplay_options.mafia_kills_shared and my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}
+        {% if not is_day and game.options.gameplay.mafia_kills_shared and my_player.character_id == MAFIA_ID and player.character_id == MAFIA_ID %}
         <i>targeted {% if player.action.done_to %}{{player.action.done_to.name}}{% else %}Nobody {% endif %}</i>
-        {% elif is_day and not gameplay_options.hidden_lynching %}
+        {% elif is_day and game.options.gameplay.lynching_shared %}
         <i>chose {% if player.action.done_to %}{{player.action.done_to.name}}{% else %}Nobody {% endif %}</i>
         {% else %}
         <i>has acted</i>
@@ -300,36 +300,12 @@
   <form class="options-form" action="{% url 'matthews:update_options'%}" method="POST">
   {% csrf_token %}
 
-  <div class="form-check m-2">
-    <input class="chex" type="checkbox" name="hidden_lynching" id="hidden_lynching"
-      {{gameplay_options.hidden_lynching|yesno:"checked,"}} value="1" {{my_player.is_leader|yesno:",disabled"}}>
-    <label class="form-check-label" for="hidden_lynching">
-      Targets of public lynching votes stay hidden until everyone has voted
-    </label>
-  </div>
-
-  <div class="form-check m-2">
-    <input class="chex" type="checkbox" name="mafia_kills_shared" id="mafia_kills_shared"
-      {{gameplay_options.mafia_kills_shared|yesno:"checked,"}} value="1" {{my_player.is_leader|yesno:",disabled"}}>
-    <label class="form-check-label" for="mafia_kills_shared">
-      Mafia can see who their team mates are trying to assasinate (<i>if they refresh the page</i>)
-    </label>
-  </div>
-<!--
-  <div class="form-check m-2">
-    <input class="form-check-input chex" type="checkbox" name="shot_clock" id="shot_clock"
-      {{gameplay_options.shot_clock|yesno:"checked,"}} value="1" {{my_player.is_leader|yesno:",disabled"}}>
-    <label class="form-check-label" for="shot_clock">
-      Last to vote is put on a timer, excluding those who are dead
-    </label>
-  </div>
-//-->
   <table class="w-100">
     <tr>
       <th>Character</th>
       <th>Frequency</th>
       <th>Minimum</th>
-      <th>Odds (with <span class="num-players">current players</span>)</th>
+      <th>Odds with <span class="num-players">current players</span></th>
     </tr>
   {% for character_id, opts in role_options.items %}
     <tr>
@@ -346,6 +322,19 @@
     </tr>
   {% endfor %}
   </table>
+
+
+  <div class="options-list {{my_player.is_leader|yesno:"edit,"}}">
+    {% for option, details in gameplay_options.items %}
+    <input class="chex" type="checkbox" name="game_options[]" id="{{option}}"
+      {%if option in game.options.gameplay %}checked{%endif%} value="{{option}}" {{my_player.is_leader|yesno:",disabled"}}>
+    <label class="form-check-label" for="{{option}}">
+      {{details.description|safe}}
+    </label>
+    <br>
+    {% endfor %}
+  </div>
+
   {% if my_player.is_leader %}
     <div class="mt-2 w-100 text-right">
       <input class="btn btn-light" type="submit" name="reset" value="Reset to default">
@@ -359,27 +348,54 @@
 
   <style>
   .options-form sub {color: #ccc}
-  .options-form .form-check label {cursor: pointer;}
 
-  .options-form label {
-    margin-left: 0.5em;
-    text-decoration: line-through;
-    text-decoration-color: #007bff;
+  .options-list [type=checkbox] {
+    margin: 0.5em 0;
   }
-  .options-form [type=checkbox]:checked + label {
+  .options-list [type=checkbox] + label {
+    margin: 0.5em 0 0.5em 0.3em;
+    display: inline-block;
+    opacity: 0.6;
+    cursor: pointer;
+  }
+
+  .options-list:not(.edit) [type=checkbox] {
+    display: none;
+  }
+  .options-list:not(.edit) [type=checkbox] + label {
+    display: none;
+  }
+
+  .options-list [type=checkbox]:checked {
+    display: inline-block;
+  }
+  .options-list [type=checkbox]:checked + label {
     text-decoration: none;
+    display: inline-block;
+    opacity: 1;
   }
-
+  .options-list:not(.edit) * {
+    pointer-events: none;
+    filter: grayscale(1);
+  }
 
   /* checkbox replacement */
   /*   .chex is a styled up version of a normal checkbox */
   input[type=checkbox].chex {
     position: relative;
+    top: 0.2em;
     height: 1.2em;
-    width: 0;
     margin-right: 1.2em;
-    vertical-align: text-bottom;
+    width: 0;
+    vertical-align: top;
     cursor: pointer;
+  }
+  input[type=checkbox].chex:disabled {
+    cursor: default;
+    filter: grayscale(1);
+  }
+  input[type=checkbox].chex:disabled + label {
+   cursor: default;
   }
   input[type=checkbox].chex:before,
   input[type=checkbox].chex:after {
@@ -447,17 +463,8 @@
     })
   </script>
 
-
   <h2>Rules</h2>
-  <ul>
-    <li>A consensus vote by the living good guys will succeed in lynching anyone</li>
-    <li>Otherwise, lynch voting is by clear majority (including votes for nobody)</li>
-    <li>Assassinations are chosen at random from the night's assassination targets.</li>
-    <li><b>Except</b> for game-winning assassination, which require consensus between the bad guys</li>
-    <li>Asassination attempts are prevented if the doctor chooses the victim on the same night</li>
-    <li>Good guys win once there are no bad guys left alive</li>
-    <li>Bad guys win once they are the majority</li>
-  </ul>
+  {% include 'matthews/_rules.html' %}
 
   <br>
 
@@ -475,7 +482,7 @@
     {% include 'matthews/_waiting_ajax.html' %}
   {% endif %}
 
-{% else %}{# if game started and not ended #}
+{% else %}{# if game started #}
   <div class="btn-group mt-5">
   {% if my_player.is_leader  %}
     <a class="btn btn-light btn-sm " href="{% url 'matthews:restart_round' round %}"
@@ -495,6 +502,32 @@
     <a class="btn btn-light btn-sm mx-2" href="{% url 'matthews:cast-all' %}">Cast all remaining votes</a>
   {% endif %}
   </div>
+
+    <br>
+    <input type="checkbox" class="open_next" id="open_next_rules">
+    <label for="open_next_rules" class="btn btn-light w-100">Review rules and modifiers</label>
+    <label class="row bg-light" for="open_next_rules">
+      <div class="col-0 col-md-1"></div>
+      <div class="col-12 col-md-10 p-3">
+        <h4>Base rules</h4>
+        {% include 'matthews/_rules.html' %}
+
+        <h4>Game options in play</h4>
+        <ul>
+          {% for option, details in gameplay_options.items %}
+            {% if option in game.options.gameplay %}
+            <li>{{details.description|safe}}</li>
+            {% endif %}
+          {% endfor %}
+          {% if not game.options.gameplay|length %}
+            <li>No modifiers are in play</li>
+          {% endif %}
+        </ul>
+      </div>
+    </label>
+  {% if not endgame_type %}
+  {% endif %}
+
 {% endif %}
 
 {% if my_player.is_leader or endgame_type %}
@@ -507,6 +540,14 @@
 {% endif %}
 
 <style>
+
+.open_next {display: none;}
+.open_next + label {}
+.open_next + label:after {font-size: 80%; content: '\00a0\00a0\00a0▼'; opacity: 0.5}
+.open_next:checked + label:after {content: '\00a0\00a0\00a0▲';}
+.open_next + label + * {max-height: 0; overflow: hidden; transition: 0.2s;}
+.open_next:checked + label + * {max-height: 50em; transition: 0.2s;}
+
 .update_panel {
   z-index: 3;
   position: absolute;
