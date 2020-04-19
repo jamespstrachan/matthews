@@ -1,0 +1,7 @@
+{% regroup votes by done_to as votes_for %}
+{% for target, votes in votes_for %}
+{% for vote in votes %}
+  {% if forloop.last and not forloop.first %}and{% endif %}
+  <b>{{vote.done_by}}</b>{% if forloop.revcounter > 2 %},{% endif %}
+{% endfor %} voted for {{target|default_if_none:'no lynching'}}{{forloop.last|yesno:"., — "}}
+{% endfor %}

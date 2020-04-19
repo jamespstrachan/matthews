@@ -367,6 +367,7 @@ def game(request):
 
     random.seed(game.id+round)
 
+    alive_players = [x for x in players if x.died_in_round is None]
     my_player.is_leader = my_player.id == players[0].id
     context = {
         'debug':            is_debug,
@@ -377,8 +378,11 @@ def game(request):
         'round':            round,
         'is_day':           round % 2 == 0,
         'players':          players,
+        'alive_players':    alive_players,
+        'random_leader':    random.choice(alive_players),
         'my_player':        my_player,
         'my_action':        Action.objects.filter(round=round, done_by=my_player).first(),
+        'num_actions':      Action.objects.filter(round=round, done_by__game=game).count(),
         'action_undone':    request.GET.get('undone'),
         'haunting_action':  get_haunting_action(my_player, round),
         'game_state':       build_game_state(game),
@@ -427,7 +431,7 @@ def make_death_report(name):
                            random.choice(x).replace('{{name}}', name)
                            )
                     for x in templates)
-    return "\n\n".join(report_lines)
+    return "\n".join(report_lines)
 
 
 def target(request):

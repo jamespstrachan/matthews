@@ -1,11 +1,12 @@
 {% if player.suspicion_pc > -1 %}
   {% if player.suspicion_pc > 66 %}
-    Which is a shame because they were right about the bad guys {{dead.suspicion_pc}}% of the time.
+    A stalwart of the community, {{player.name}} will be particularly missed because they were right about the bad guys {{dead.suspicion_pc}}% of the time.
   {% elif player.suspicion_pc > 33 %}
-    They knew something about the bad guys, picking them out {{dead.suspicion_pc}}% of the time.
+    Though not the most observant contributor {{player.name}} knew something about the bad guys, picking them out {{dead.suspicion_pc}}% of the time.
   {% elif player.suspicion_pc > 0 %}
-    They were deceived by the bad guys, with a {{dead.suspicion_pc}}% success rate.
+    {{player.name}} had little to offer the community. They only found bad guys with a {{dead.suspicion_pc}}% success rate.
   {% else %}
-    No real loss, they never suspected a single bad guy in the night - perhaps they were one!
+    No one will miss {{player.name}} because they never correctly suspected a single bad guy in the night. This lead
+    some to suspect that they may have been one.
   {% endif %}
 {% endif %}
