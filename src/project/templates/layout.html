@@ -57,7 +57,7 @@
       {% endfor %}
 
 
-      <div class="page">
+      <div class="page {% block page_classes %}{% endblock %}">
       {% block content %}
       (No content in this page)
       {% endblock %}

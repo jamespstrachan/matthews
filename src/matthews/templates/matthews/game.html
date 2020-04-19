@@ -1,7 +1,9 @@
 {% extends "layout.html" %}
 {% load static %}
-{% block content %}
 
+
+{% block page_classes %}{% if game.date_started and not endgame_type %} {{is_day|yesno:'day,night'}} {% endif %}{% endblock %}
+{% block content %}
 
 {% if not game.date_started %}
   <h2>Game setup</h2>
@@ -189,7 +191,7 @@
         <a class="play_as" href="{% url 'matthews:game' %}?play_as_id={{player.id}}" title="{{player.character.name}}">@</a>
         {% endif %}
       </h2>
-      <div class="portrait"></div>
+      <div class="portrait_frame"><div class="portrait"></div></div>
       <p class="info">
       {% if my_player.id == player.id %}
       <span>You{% if my_player.character %}, {{my_player.character}}{%endif%}</span>
@@ -268,7 +270,7 @@
       {% if not my_action %}
       {% endif %}
       <h2>Nobody</h2>
-      <div class="portrait"></div>
+      <div class="portrait_frame"><div class="portrait"></div></div>
       {% if not my_action %}
       <input type="submit" value="{% include 'matthews/_action_name.html' with player=my_player %}" class="btn btn-primary">
       {% else %}
@@ -349,7 +351,7 @@
   <br>
 
   <style>
-  .options-form sub {color: #ccc}
+  .options-form sub {color: opacity: 0.5;}
 
   .options-list [type=checkbox] {
     margin: 0.5em 0;
@@ -475,7 +477,7 @@
   {% endif %}
 
 {% else %}{# if game started #}
-  <div class="btn-group mt-5">
+  <div class="btn-group mt-5 mb-2">
   {% if my_player.is_leader  %}
     <a class="btn btn-light btn-sm " href="{% url 'matthews:restart_round' round %}"
        onclick="return confirm('Are you sure? This will undo all actions since start of round {{round|add:1}}');"
@@ -498,7 +500,7 @@
     <br>
     <input type="checkbox" class="open_next" id="open_next_rules">
     <label for="open_next_rules" class="btn btn-light w-100">Review character mix, rules and modifiers</label>
-    <label class="row bg-light" for="open_next_rules">
+    <label class="row text-panel" for="open_next_rules">
       <div class="col-0 col-md-1"></div>
       <div class="col-12 col-md-10 p-3">
         <h4>Character mix</h4>
@@ -563,7 +565,7 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
     pc_max   = parseInt((num_char % 1) * 100);
     pc_min   = 100 - pc_max;
   }
-  if(name && (max != 1 || min != 1)){
+  if(name && (name.slice(-1)[0] != 'a') && (max != 1 || min != 1)){
       name += 's'
   }
   if(max==min){
@@ -576,7 +578,25 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 
 
 <style>
-.describe_odds sub {color: #ccc}
+.page.day, page.night {
+  margin-top: 0;
+  padding-top: 4em;
+}
+.page.day {
+  background: linear-gradient(180deg, #4fd0e3 0em, white 6em)
+              white;
+}
+.page.night {
+  background: linear-gradient(to bottom, #00000000 0em, #3b3344 6em, #3b3344 100%),
+              url("http://www.script-tutorials.com/demos/360/images/stars.png") no-repeat;
+  background-size: cover;
+}
+
+.page.night {color: #bab;}
+
+.page.night .update_panel {color: black;}
+
+.describe_odds sub {opacity: 0.5;}
 
 .open_next {display: none;}
 .open_next + label {}
@@ -585,13 +605,16 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 .open_next + label + * {max-height: 0; overflow: hidden; transition: 0.2s;}
 .open_next:checked + label + * {max-height: 50em; transition: 0.2s;}
 
+.text-panel {background-color: #eee;}
+.page.night .text-panel {background-color: #493e56;}
+
 .update_panel {
   z-index: 3;
   position: absolute;
   width: 19em;
   height: 2.5em;
   border-radius: 0.2em;
-  top: -1em;
+  top: 1em;
   right: 0.1em;
   overflow: hidden;
   background-color: #fec;
@@ -644,17 +667,18 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 [type=radio] {display:none;}
 .avatar {
   display:inline-block;
-  height: 172px;
+  height: 174px;
   margin: 1em 1em 4em;
   position: relative;
   cursor: pointer;
   vertical-align: top;
   transition: 0.1s;
   background-color: #f2e9e4;
+  border-radius: 0.5em;
 }
 .avatar > h2{
   overflow: hidden;
-  padding: 0.1em;
+  padding: 0.2em 0.4em;
   margin-bottom: 0em;
 }
 
@@ -662,19 +686,27 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 [type=radio]:checked + .avatar
 {
   transform: scale(1.1);
-  box-shadow: 2px 3px 4px rgba(0,0,0,0.2);
   background-color: #007bff;
   cursor: default;
+  filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.2));
 }
 [type=radio]:checked + .avatar h2 { color: white; }
 
+
+.portrait_frame {
+  width: 100%;
+  background: #f2e9e4;
+  overflow: hidden;
+  border-bottom-left-radius: 0.5em;
+  border-bottom-right-radius: 0.5em;
+  padding-top: 1px;
+}
 .portrait {
   width: 115px;
   height: 123px;
   background: url('{% static 'matthews/images/avatar_test.jpg' %}') top left no-repeat #f2e9e4;
   background-size: 350px 360px;
   margin: 0em auto 0.5em;
-
 }
 .avatar.n0 .portrait { background-position: top left; }
 .avatar.n1 .portrait { background-position: top center; }
@@ -690,8 +722,11 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 .vote-form [type=submit] {
   position: absolute;
   top: 80%;
-  width: 120%;
-  left: -10%;
+  width: 100%;
+  box-sizing: content-box;
+  left: -1em;
+  padding-left: 1em;
+  padding-right: 1em;
   display: none;
   z-index: 2;
   cursor: pointer;
