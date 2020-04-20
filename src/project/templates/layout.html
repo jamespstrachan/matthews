@@ -36,16 +36,11 @@
         opacity: 0.3;
         text-align: center;
       }
-      .css-transitions-only-after-page-load * {
-        transition: none !important;
-      }
     </style>
     <script>
-      // from: https://stackoverflow.com/a/20002763
+      // to allow transitions to opt-out of firing on page load in Chrome: https://stackoverflow.com/a/20002763
       $(function () {
-        $(".css-transitions-only-after-page-load").each(function (index, element) {
-            setTimeout(function () { $(element).removeClass("css-transitions-only-after-page-load") }, 10);
-        });
+        setTimeout(function () { $('body').addClass("page-loaded") }, 10);
       });
     </script>
   </head>
@@ -68,7 +63,7 @@
       {% endfor %}
 
 
-      <div class="page css-transitions-only-after-page-load {% block page_classes %}{% endblock %}">
+      <div class="page {% block page_classes %}{% endblock %}">
       {% block content %}
       (No content in this page)
       {% endblock %}

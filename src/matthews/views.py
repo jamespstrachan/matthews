@@ -365,6 +365,7 @@ def game(request):
         if 'show_suspicion_pc_on_death' in game.options.get('gameplay', {}) and round > 1:
             for death in deaths:
                 correct_actions = death.actions_by.filter(round__iregex=night_regex,
+                                                          round__lt=round,
                                                           done_to__character_id__in=bad_guy_ids) \
                                                   .count()
                 death.suspicion_pc = int(correct_actions / floor(round / 2) * 100)
@@ -397,6 +398,9 @@ def game(request):
         'death_report':     make_death_report(deaths[0].name) if deaths else '',
         'suspect':          suspect,
         'MAFIA_ID':         MAFIA_ID,
+        'DOCTOR_ID':        DOCTOR_ID,
+        'DETECTIVE_ID':     DETECTIVE_ID,
+        'CIVILIAN_ID':      CIVILIAN_ID,
         'endgame_type':     endgame_type,
     }
 

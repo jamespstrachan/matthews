@@ -60,10 +60,25 @@
     <div class="game_fact">
       Text like this gives you bare facts about the game without flowery descriptions.
     </div>
+    <div class="game_fact">
+      You are
+      {% if my_player.character_id == MAFIA_ID %}
+        in the mafia.
+      {% elif my_player.character_id == DETECTIVE_ID %}
+        a detective.
+      {% elif my_player.character_id == DOCTOR_ID %}
+        a doctor.
+      {% elif my_player.character_id == CIVILIAN_ID %}
+        a regular civilian.
+      {% else %}
+        a new character ...
+      {% endif %}
+    </div>
 
 
     <br><br>
     <span class="btn btn-primary float-right">Choose the player you'd like to lynch, or vote for nobody to be killed</a>
+
   {% elif endgame_type %}
     {% if endgame_type == 'bad' %}
     <div class="newspaper clearfix">
@@ -730,6 +745,9 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 
 [type=checkbox]:checked + .update_mask + .update_panel{
   transform: translate(0, -99%);
+  transition: 0s;
+}
+.page-loaded [type=checkbox]:checked + .update_mask + .update_panel{
   transition: 0.5s;
 }
 
@@ -775,7 +793,6 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 .update_panel > h2 {
   margin-bottom: 0.2em;
 }
-
 
 .newspaper {
   margin: 0em 2em 4em 1em;
@@ -900,17 +917,16 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   transform: rotate(5deg);
   font-family: 'Homemade Apple', cursive;
 }
-.dead-instructions {
-  background-color: #fce;
-  padding: 2em;
+
+.update_panel .btn:last-child {
+  cursor: pointer;
+}
+.update_panel .btn:last-child:after {
+  content: '\00a0\00a0▷';
 }
 
 
 .mark_dead { filter: grayscale(1); opacity: 0.5;}
-.win_text{
-  font-size: 6em;
-  color: red;
-}
 .play_as {
   position: absolute;
   right: 0;

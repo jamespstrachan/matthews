@@ -23,15 +23,20 @@
 
   function check_game_state(){
     if(!allow_redirect){ return; }
+    check_reps -= 1;
     $.ajax({
       url: "{% url 'matthews:state' %}",
       method: 'GET',
     }).done(function(data){
       if(data != last_game_state && allow_redirect){
         window.location = window.location;
+      }else{
+        set_watch();
       }
     })
-    check_reps -= 1;
+  }
+
+  function set_watch(){
     if( check_reps ){
       window.setTimeout(check_game_state, check_seconds*1000);
     }else{
@@ -39,5 +44,6 @@
       $('.loader').hide();
     }
   }
-  window.setTimeout(check_game_state, check_seconds*1000);
+
+  set_watch();
 </script>
