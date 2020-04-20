@@ -251,7 +251,7 @@ def game(request):
         messages.add_message(request, messages.INFO, 'Your player was kicked from the game')
         return HttpResponseRedirect(reverse('matthews:home'))
 
-    i_am_dead = (my_player.died_in_round or 9999) < round
+    i_am_dead = my_player.died_in_round is not None and my_player.died_in_round < round
 
     suspect = None
     if round % 2 == 0 and my_player.character_id == DETECTIVE_ID and not i_am_dead:
@@ -365,7 +365,7 @@ def game(request):
                                                   .count()
                 death.suspicion_pc = int(correct_actions / floor(round / 2) * 100)
 
-    random.seed(game.id+round)
+    #random.seed(game.id+round)
 
     alive_players = [x for x in players if x.died_in_round is None]
     my_player.is_leader = my_player.id == players[0].id
@@ -412,17 +412,42 @@ def get_haunting_action(player, round):
 def make_death_report(name):
     templates = [
         [
-        "A horrible incident at the [Bakery,School,Garden Center,Polio Ward] left {{name}} dead as [a dingbat,a doornail,Jimmy Saville].",
-        "Locals came across a [frankly baffling] mystery this morning when they discovered the body of {{name}} locked inside a [suitcase,mini-bar,chest freezer].",
-        "There was [chaos,pandemonium,a grim silence] at the [farmers' market] this morning when {{name}}'s [head,arm,spine] was discovered floating in the communal [milk,ale,water] barrel.",
+        "A [horrible,grim,ghastly,concerning,provocative,crazy,deeply unfortunate,regrettable,worrying,largely unexpected] \
+        incident at the [bakery,school,garden center,polio ward,RSPCA,nursing home,young offenders court,Tom Thumb home for tiny little boys] \
+        left {{name}} dead as [a dingbat,a doornail,Jimmy Saville,anything,a dodo,disco,can be].",
+
+        "Locals came across [a frankly baffling,a deeply worrying,a seemingly unsolvable,an exciting,a disgusting,some kind of] mystery \
+        this morning when they discovered the body of {{name}} \
+        locked inside [a suitcase,a mini-bar,a chest freezer,a really big one of those trinket necklaces,a coal scuttle,their own mind].",
+
+        "There was [chaos,pandemonium,a grim silence,a lot of tutting,an exchange of stern looks,a stampede,huge crowd,funky smell] \
+        at the [farmers' market,nail salon,corner by the square,edge of town,police cells,crack of dawn,AIDs parade,theatre matinee] this morning \
+        when {{name}}'s [head,arm,spine,severed right leg,spleen,limbless torso,still-sentient brain,decapitated head] was discovered \
+        floating in the [communal milk barrel,water tower,boating pond,second of Mrs Anderson's baths,shallowest puddle around,chef's stock pot].",
         ],[
-        "[Police,First-responders,A young child] found the body with a [spatula,baked potato,half-complete Airfix kit] stuck into its [collarbone,clavicle,right temple] and having lost a lot of blood.",
-        "The cause of death was unknown \"Apart from [being dead,their pale colour,male-pattern baldness] they appeared to be in peak physical condition\", said [the coroner,the chief of police,Mrs Ronson from number 34].",
-        "Authorities could only identify the body by its [winning smile,nubile physique,luscious sideburns] and [Norway,penis,Mickey Mouse]-shaped birth mark.",
+        "[Police,First-responders,A young child,A hungry dog,One of those skinny runners you see,A travelling circus,The rugby sevens team,Celebrity Michael Sheen] \
+        found the body which had a [spatula,baked potato,half-complete Airfix kit,thicket of arrows,punt pole,sharpened leek,miniature version of the Eiffel Tower,number of swords,whole PlayStation controller,fencing foil] \
+        stuck into its [collarbone,clavicle,right temple,belly button,jugular,nose,squishy bits,back passage,mouth,toenail (but in a fatal fashion)]. \
+        They had lost a lot of blood.",
+
+        "The cause of death was unknown \"Apart from \
+        [being dead,their pale colour,male-pattern baldness,a history of alcoholism,narcolepsy,all that acne,avoidable childhood obesity,their different-length legs,ghastly taste in fashion,poor personal hygiene,misjudged attempts at humour,general unlikeability] \
+        they appeared to be [in peak physical condition,in general good health,in ripping health,in fine form,in roaring shape,fit as a fiddle,reasonably sound of mind,quite well off,newly sober]\", said \
+        [the coroner,the chief of police,Mrs Ronson from number 34,a chorus of doctors,Michael Burke,no one ever,the most qualified person we could find to interview].",
+
+        "Authorities could only identify the body by its \
+        [winning smile,nubile physique,luscious sideburns,shoddy tattoos,expertly plucked eyebrows,one warty toe,overly complex genitalia,useless prehensile tail] \
+        and [Norway,penis,Mickey Mouse,heart,unfortunately,amusingly,nipple,upsettingly,Florida,star,not-quite-swastika]-shaped birth mark.",
         ],[
-        "Our thoughts, prayers and [best wishes,cash prizes,sexy times] are with [the family,the whole world,no one in particular] at this difficult time.",
-        "The deceased leaves behind their pet [dog,iguana,zebra] {{name}} Jr. and an unmoved [spouse,set of triplets,mother-in-law].",
-        "\"They were always into [hang-gliding,pot-holing,archery]\", [a close friend,a passing cyclist,a disembodied voice] remarked \"so I guess it's what they would have wanted\"",
+        "Our thoughts, prayers and [best wishes,cash prizes,minimal good will,fresh tears,suspicious glances,abject despair,sandwiches,mixed feelings] \
+        are with [the family,the whole world,no one in particular,their grieving widow,the concept of peace,in usual parameters,no clear target] at this difficult time.",
+
+        "The deceased leaves behind their pet [dog,iguana,zebra,chincilla,rattlesnake,panda,goldfish,Chubby,flamingo,colony of ants who are each named,rock,thermos flask of dna] {{name}} Jr. \
+        and an unmoved [spouse,set of triplets,mother-in-law,universe,autistic daughter,collection of vintage baseball cards,tree,conjoined twin,tape worm colony].",
+
+        "\"They were always into [hang-gliding,pot-holing,archery,other people's business,self-improvement,meditation,achieving one-ness,more debt than could ever be paid off,morbid cosplay,self-asphyxiation,weird shit]\", \
+        [a close friend,a passing cyclist,a disembodied voice,a street drunk,everyone we spoke to,the voice of time,a generic pundit,the local minister,someone special,their accountant,their one remaining friend,someone who didn't know them that well] \
+        remarked \"so I guess it's what they would have wanted\"",
         ],
     ]
 

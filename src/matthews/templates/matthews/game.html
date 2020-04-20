@@ -33,6 +33,7 @@
     <h2>Performance review</h2>
   {% endif %}
   <input id="update_opener" type="checkbox" class="d-none" {% if num_actions > 0 or action_undone or game.next_game %}checked{% endif %}>
+  <div class="update_mask"></div>
   <label class="update_panel" for="update_opener">
   {% if round == 0 and not endgame_type %}
     <div class="newspaper clearfix">
@@ -42,7 +43,9 @@
         After weeks of tension, today trouble errupted. Mobs of angry residents have been spotted
         going from house to house in an attempt to root out the criminal element.
         <br>
-        A meeting has been called for 3pm to discuss who to lynch. Bring your pitchforks.
+        A meeting has been called for 3pm to discuss who to lynch, though organisers admit there's
+        really nothing on which to base a lynching at this time. "Bring your pitchforks nonetheless,"
+        said {{random_leader}}.
         <br>
         This publication stands committed to sharing <b>the same information with everyone</b>
         in these divided times.
@@ -138,7 +141,7 @@
         <h1>FEAR OF NIGHT MURDER UNFOUNDED SAYS COUNCIL</h1>
         <span class="image peace"></span>
         <div class="article">
-          Reports of shadowy figures and unusual activites overnight came to nothing this morning
+          Reports of shadowy figures and unusual night-time activites came to nothing this morning
           as everyone awakened unharmed. Still a general feeling of unease remains.
           <br>
           {{random_leader.name}} has scheduled a meeting for 3pm to discuss who to lynch. Bring your pitchforks.
@@ -152,6 +155,8 @@
         you may not communicate with other players until the end of the game.
         <br>
         you're allowed to make ghostly noises but only at random times.
+        <br>
+        "haunt" a player to give them a note saying you visited
       </p>
       {% elif suspect %}
       <p class="secret_note">
@@ -160,7 +165,7 @@
       </p>
       {% elif haunting_action %}
       <p class="secret_note">
-        you heard <b>{{haunting_action.done_by}}</b>'s  voice in the morning breeze - could it be..?
+        you heard <b>{{haunting_action.done_by|lower}}</b>'s  voice in the morning breeze - could it be..?
       </p>
       {% endif %}
 
@@ -200,19 +205,6 @@
       </a>
     {% else %}                  {####################################### SLEEPY SLEEPY IT'S EVENING #}
 
-      {% if my_player.id == deaths.0.id %}
-      {# todo - de-dupe this with same for night time killing #}
-      <p class="dead-instructions">
-        You were found guilty and excuted to death!
-        <i>
-          You cannot speak to other players until the end of the game.
-          You may make ghostly noises at purely random times.
-          By day and night you will get the chance to haunt those who wronged you
-          and the community that couldn't keep you safe.
-        </i>
-      </p>
-      {% endif %}
-
       {% if deaths %}
       <div class="newspaper clearfix">
         <h1>{{deaths.0.name|upper}} PUT TO DEATH</h1>
@@ -226,14 +218,6 @@
           The voting broke down as follows:
           {% include 'matthews/_vote_breakdown.html'%}
         </div>
-      </div>
-      <div class="game_fact">
-        <b>{{deaths.0}}</b> was killed by popular vote.
-        {% if deaths.0.suspicion_pc > -1 %}
-        </div>
-        <div class="game_fact">
-          {{deaths.0}} chose bad guys on {{deaths.0.suspicion_pc}}% of night rounds.
-        {% endif %}
       </div>
       {% else %}
         <div class="newspaper clearfix">
@@ -251,19 +235,39 @@
             have another go tomorrow."
           </div>
         </div>
-        <div class="game_fact">
-          No one was lynched.
-        </div>
       {% endif %}
 
       {% if my_player.id == deaths.0.id %}
-      <div class="game_fact">You died. You may not speak for the rest of the game.</div>
+        <p class="secret_note">
+          you are a ghost now...
+          you may not communicate with other players until the end of the game.
+          <br>
+          you're allowed to make ghostly noises but only at random times.
+          <br>
+          "haunt" a player to give them a note saying you visited
+        </p>
+      {% elif haunting_action %}
+        <p class="secret_note">
+          you saw a picture of <b>{{haunting_action.done_by|lower}}</b> and it brought a tear to your eye
+        </p>
       {% endif %}
 
-      {% if haunting_action %}
-      <p class="secret_note">
-        you saw a picture of <b>{{haunting_action.done_by}}</b> and it brought a tear to your eye
-      </p>
+
+      <div class="game_fact">
+      {% if deaths %}
+          {{deaths.0}} was killed by popular vote.
+          {% if deaths.0.suspicion_pc > -1 %}
+            </div>
+            <div class="game_fact">
+              {{deaths.0}} chose bad guys on {{deaths.0.suspicion_pc}}% of night rounds.
+          {% endif %}
+      {% else %}
+          No one was lynched.
+      {% endif %}
+      </div>
+
+      {% if my_player.id == deaths.0.id %}
+      <div class="game_fact">You died. You may not speak for the rest of the game.</div>
       {% endif %}
 
       <br><br>
@@ -712,24 +716,42 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   position: absolute;
   display: block;
   padding: 2em;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: #a2968e;
+  light-background: #e8f2f4;
+  transition: 0.5s;
+  transition-property: transform;
+  border-bottom-left-radius: 0.5em;
+  filter: drop-shadow(2px 3px 2px rgba(0,0,0,0.2));
+}
+
+[type=checkbox]:checked + .update_mask + .update_panel{
+  transform: translate(0, -100%);
+}
+
+.update_mask{
+  position: absolute;
+  display: block;
+  padding: 2em;
   z-index: 3;
   left: 0;
   right: 0;
   top: 0;
   height: 100%;
-  background: #e8f2f4;
-  transition-property: top;
-  transition: 0s;
+  background: white;
+  transition: 0.5s linear;
+  transition-property: opacity;
 }
 
-
-[type=checkbox]:checked + .update_panel{
-  transition: 0.5s;
-  top: -100%;
+[type=checkbox]:checked + .update_mask{
+  opacity: 0;
 }
-.update_panel > h2 { margin-bottom: 0.2em;}
-[type=checkbox]:checked + .update_panel:after {
-  content: 're-open\00a0\00a0\00a0▼';
+
+[type=checkbox] + .update_mask + .update_panel:after {
+  content: 'close\00a0\00a0▲';
   position: absolute;
   display: inline-block;
   bottom: -2.4em;
@@ -738,7 +760,17 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   padding: 0.5em 1em;
   border-bottom-left-radius: 0.5em;
   border-bottom-right-radius: 0.5em;
+  cursor: pointer;
+  color: white;
 }
+[type=checkbox]:checked + .update_mask + .update_panel:after {
+  content: 'open\00a0\00a0▼';
+}
+
+.update_panel > h2 {
+  margin-bottom: 0.2em;
+}
+
 
 .newspaper {
   margin: 0em 0em 2em 0em;
@@ -823,6 +855,7 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 
 
 @media (min-width: 576px) {
+  .update_mask,
   .update_panel {
     left: 2em;
     right: 2em;
@@ -911,13 +944,19 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   background-color: #f2e9e4;
   border-radius: 0.5em;
 }
+.avatar:hover {
+  background-color: #ebddd6;
+}
 .avatar > h2{
   overflow: hidden;
   padding: 0.2em 0.4em;
   margin-bottom: 0em;
 }
 
-[type=radio]:disabled + .avatar { cursor: default; }
+[type=radio]:disabled + .avatar {
+  background-color: #f2e9e4;
+  cursor: default;
+}
 [type=radio]:checked + .avatar
 {
   transform: scale(1.1);

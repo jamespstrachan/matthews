@@ -3,5 +3,5 @@
 {% for vote in votes %}
   {% if forloop.last and not forloop.first %}and{% endif %}
   <b>{{vote.done_by}}</b>{% if forloop.revcounter > 2 %},{% endif %}
-{% endfor %} voted for {{target|default_if_none:'no lynching'}}{{forloop.last|yesno:"., — "}}
+{% endfor %}{%if votes|length == 2%}both {%elif votes|length > 2%} all{%endif%} voted for {{target|default_if_none:'no lynching'}}{{forloop.last|yesno:"., — "}}
 {% endfor %}
