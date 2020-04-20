@@ -717,8 +717,8 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   display: block;
   padding: 2em;
   z-index: 4;
-  left: 0;
-  right: 0;
+  left: 2em;
+  right: 2em;
   top: 0;
   background: #a2968e;
   light-background: #e8f2f4;
@@ -738,8 +738,8 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   display: block;
   padding: 2em;
   z-index: 3;
-  left: 0;
-  right: 0;
+  left: 2em;
+  right: 2em;
   top: 0;
   height: 100%;
   background: white;
@@ -778,7 +778,7 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 
 
 .newspaper {
-  margin: 0em 0em 2em 0em;
+  margin: 0em 2em 4em 1em;
   padding: 1em;
   display: block;
   position: relative;
@@ -802,7 +802,7 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   font-family: Times New Roman, serif;
   font-weight: bold;
   letter-spacing: -0.05em;
-  font-size: 180%;
+  font-size: 280%;
 }
 
 .newspaper .image {
@@ -856,27 +856,11 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   min-height: 150px;
   text-align: justify;
   font-family: Times New Roman, serif;
+  column-count: 3;
+  column-width: 125px;
+  column-gap: 2em;
 }
 
-
-@media (min-width: 576px) {
-  .update_mask,
-  .update_panel {
-    left: 2em;
-    right: 2em;
-  }
-  .newspaper {
-    margin: 0em 2em 4em 1em;
-  }
-  .newspaper h1 {
-    font-size: 280%;
-  }
-  .newspaper .article {
-    column-count: 3;
-    column-width: 125px;
-    column-gap: 2em;
-  }
-}
 
 .game_fact {
   position: relative;
@@ -967,6 +951,7 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   transform: scale(1.1);
   background-color: #007bff;
   cursor: default;
+  z-index: 2;
   filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.2));
 }
 [type=radio]:checked + .avatar h2 { color: white; }
@@ -1037,6 +1022,35 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 }
 .waiting > * { vertical-align: baseline; }
 .secret-link {position: absolute; top: 100%; left: 0;}
+
+
+
+
+@media (max-width: 576px) {
+  .page {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .update_mask,
+  .update_panel {
+    left: 0;
+    right: 0;
+  }
+  .newspaper {
+    margin: 0em 0em 2em 0em;
+  }
+  .avatar {
+    margin: 0.5em 0.2em 4em;
+  }
+  .newspaper h1 {
+    font-size: 180%;
+  }
+  .newspaper .article {
+    column-count: initial;
+    column-width: initial;
+    column-gap: initial;
+  }
+}
 
 
 
