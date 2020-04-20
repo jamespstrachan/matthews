@@ -101,6 +101,10 @@ def join(request, id, name, hash):
 
     player = Player.objects.filter(game=game, name=name).first()
     if not player:
+        if game.date_started:
+            messages.add_message(request, messages.INFO, "That game has already started so you can't join")
+            return HttpResponseRedirect(reverse('matthews:home'))
+
         player = Player(name=name, game=game)
         player.save()
 
@@ -365,7 +369,7 @@ def game(request):
                                                   .count()
                 death.suspicion_pc = int(correct_actions / floor(round / 2) * 100)
 
-    #random.seed(game.id+round)
+    random.seed(game.id+round)
 
     alive_players = [x for x in players if x.died_in_round is None]
     my_player.is_leader = my_player.id == players[0].id
@@ -431,7 +435,7 @@ def make_death_report(name):
         They had lost a lot of blood.",
 
         "The cause of death was unknown \"Apart from \
-        [being dead,their pale colour,male-pattern baldness,a history of alcoholism,narcolepsy,all that acne,avoidable childhood obesity,their different-length legs,ghastly taste in fashion,poor personal hygiene,misjudged attempts at humour,general unlikeability] \
+        [being dead,their pale colour,male-pattern baldness,a history of alcoholism,narcolepsy,all that acne,avoidable childhood obesity,their different-length legs,a ghastly taste in fashion,poor personal hygiene,misjudged attempts at humour,general unlikeability] \
         they appeared to be [in peak physical condition,in general good health,in ripping health,in fine form,in roaring shape,fit as a fiddle,reasonably sound of mind,quite well off,newly sober]\", said \
         [the coroner,the chief of police,Mrs Ronson from number 34,a chorus of doctors,Michael Burke,no one ever,the most qualified person we could find to interview].",
 

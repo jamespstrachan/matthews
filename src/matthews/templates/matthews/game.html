@@ -729,7 +729,8 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
 }
 
 [type=checkbox]:checked + .update_mask + .update_panel{
-  transform: translate(0, -100%);
+  transform: translate(0, -99%);
+  transition: 0.5s;
 }
 
 .update_mask{
@@ -745,9 +746,13 @@ function describe_character_odds(num_players, percentage, minimum, name=''){
   transition: 0.5s linear;
   transition-property: opacity;
 }
+.night .update_mask{
+  background: #3b3344;
+}
 
 [type=checkbox]:checked + .update_mask{
   opacity: 0;
+  pointer-events: none;
 }
 
 [type=checkbox] + .update_mask + .update_panel:after {
