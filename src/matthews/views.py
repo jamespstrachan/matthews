@@ -412,7 +412,7 @@ def game(request):
 
 
 def get_haunting_action(player, round):
-    actions = Action.objects.filter(round=round-1, done_to=player, done_by__died_in_round__isnull=False)
+    actions = Action.objects.filter(round=round-1, done_to=player, done_by__died_in_round__lt=round-1)
     if len(actions):
         return random.Random().choice(list(actions))
 
