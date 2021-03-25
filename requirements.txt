@@ -8,6 +8,6 @@ gunicorn==20.0.4
 Pillow==7.1.1
 libsasscompiler==0.1.5
 python-memcached==1.59
-PyYAML==5.1.1
+PyYAML==5.4
 flake8==3.7.8
 
